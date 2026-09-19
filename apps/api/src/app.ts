@@ -18,6 +18,7 @@ import { nfcRouter } from './routes/nfc.js';
 import { campaignRouter } from './routes/campaigns.js';
 import { analyticsRouter } from './routes/analytics.js';
 import { auditRouter } from './routes/audit.js';
+import { notificationRouter } from './routes/notifications.js';
 import { billingRouter } from './routes/billing.js';
 import { publicRouter } from './routes/public.js';
 import { walletRouter } from './routes/wallet.js';
@@ -64,6 +65,7 @@ export function createApp(): Express {
   app.use('/v1/campaigns', apiLimiter, requireAuth, campaignRouter);
   app.use('/v1/analytics', apiLimiter, requireAuth, analyticsRouter);
   app.use('/v1/audit', apiLimiter, requireAuth, auditRouter);
+  app.use('/v1/notifications', apiLimiter, requireAuth, notificationRouter);
   app.use('/v1/billing', apiLimiter, requireAuth, billingRouter);
   app.use('/v1/events', requireAuth, eventsRouter);
 

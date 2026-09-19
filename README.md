@@ -36,6 +36,7 @@ Web app (Next.js) ─┘             │
 | Staff accounts, invitations, role permissions | ✅ |
 | Rewards, redemption, transaction history | ✅ |
 | Campaigns and segmentation, double stamp days | ✅ |
+| Notifications through wallet pass updates (email/SMS pluggable) | ✅ |
 | Analytics, staff and location activity, retention | ✅ |
 | NFC tag management, disable a lost tag instantly | ✅ |
 | Audit log, idempotency, rate limiting, fraud controls | ✅ |

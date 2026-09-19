@@ -35,7 +35,10 @@ export default async function AnalyticsPage({
 
   const query = new URLSearchParams({ days });
   if (params.locationId) query.set('locationId', params.locationId);
-  const data = await api<FullAnalytics>(`/v1/analytics/full?${query.toString()}`);
+  const [data, locations] = await Promise.all([
+    api<FullAnalytics>(`/v1/analytics/full?${query.toString()}`),
+    api<{ items: { id: string; name: string }[] }>('/v1/business/locations'),
+  ]);
 
   return (
     <>
@@ -47,6 +50,14 @@ export default async function AnalyticsPage({
             <option value="90">Last 90 days</option>
             <option value="180">Last 6 months</option>
             <option value="365">Last year</option>
+          </select>
+          <select name="locationId" defaultValue={params.locationId ?? ''}>
+            <option value="">All locations</option>
+            {locations.items.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
           </select>
           <button className="btn secondary" type="submit">
             Apply

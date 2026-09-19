@@ -29,11 +29,19 @@ interface BusinessData {
 
 export const metadata = { title: 'Dashboard — LoyaltyApp' };
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ locationId?: string }>;
+}) {
   await requirePermission('analytics:read');
-  const [data, business] = await Promise.all([
-    api<DashboardData>('/v1/analytics/dashboard'),
+  const { locationId } = await searchParams;
+  const query = locationId ? `?locationId=${encodeURIComponent(locationId)}` : '';
+
+  const [data, business, locations] = await Promise.all([
+    api<DashboardData>(`/v1/analytics/dashboard${query}`),
     api<BusinessData>('/v1/business'),
+    api<{ items: { id: string; name: string }[] }>('/v1/business/locations'),
   ]);
 
   const { stats } = data;
@@ -42,7 +50,24 @@ export default async function DashboardPage() {
     <>
       <div className="topbar">
         <h1>Dashboard</h1>
-        <LiveRefresh />
+        <div className="row">
+          {locations.items.length > 1 && (
+            <form className="row">
+              <select name="locationId" defaultValue={locationId ?? ''}>
+                <option value="">All locations</option>
+                {locations.items.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+              <button className="btn secondary" type="submit">
+                Apply
+              </button>
+            </form>
+          )}
+          <LiveRefresh />
+        </div>
       </div>
 
       <div className="grid cols-4">

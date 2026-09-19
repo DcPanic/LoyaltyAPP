@@ -19,6 +19,7 @@ export const NAV: NavItem[] = [
   { href: '/loyalty', label: 'Loyalty', icon: '🎫', permission: 'program:manage', section: 'Program' },
   { href: '/rewards', label: 'Rewards', icon: '🎁', permission: 'reward:manage' },
   { href: '/campaigns', label: 'Campaigns', icon: '📣', permission: 'campaign:manage' },
+  { href: '/notifications', label: 'Notifications', icon: '🔔', permission: 'analytics:read' },
   { href: '/analytics', label: 'Analytics', icon: '📈', permission: 'analytics:read' },
   { href: '/staff', label: 'Staff', icon: '🧑‍🍳', permission: 'staff:manage', section: 'Café' },
   { href: '/locations', label: 'Locations', icon: '📍', permission: 'location:manage' },
