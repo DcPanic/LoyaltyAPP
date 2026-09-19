@@ -1,0 +1,491 @@
+// LoyaltyApp — multi-tenant schema.
+// Every tenant-owned row carries businessId; all queries are tenant-scoped in code.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  MANAGER
+  STAFF
+}
+
+enum CustomerStatus {
+  ACTIVE
+  BLOCKED
+  DELETED
+}
+
+enum MembershipStatus {
+  ACTIVE
+  INACTIVE
+  DELETED
+}
+
+enum TransactionType {
+  JOIN
+  STAMP_ADD
+  STAMP_REMOVE
+  ADJUSTMENT
+  REWARD_EARNED
+  REWARD_REDEEMED
+}
+
+enum TransactionChannel {
+  STAFF_APP
+  STAFF_WEB
+  PHONE_ORDER
+  DELIVERY
+  NFC
+  QR
+  SYSTEM
+}
+
+enum WalletPlatform {
+  APPLE
+  GOOGLE
+}
+
+enum CampaignType {
+  DOUBLE_STAMP
+  BIRTHDAY
+  WIN_BACK
+  VIP_OFFER
+  ANNOUNCEMENT
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+model Business {
+  id               String   @id @default(cuid())
+  name             String
+  slug             String   @unique
+  logoUrl          String?
+  coverImageUrl    String?
+  primaryColor     String   @default("#6F4E37")
+  secondaryColor   String   @default("#F5E9DA")
+  contactEmail     String?
+  contactPhone     String?
+  addressLine      String?
+  city             String?
+  country          String   @default("CY")
+  currency         String   @default("EUR")
+  timezone         String   @default("Asia/Nicosia")
+  openingHours     Json?
+  privacyPolicyUrl String?
+  termsUrl         String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  staffMemberships StaffMembership[]
+  locations        Location[]
+  customers        Customer[]
+  programs         LoyaltyProgram[]
+  memberships      LoyaltyMembership[]
+  rewards          Reward[]
+  transactions     Transaction[]
+  redemptions      RewardRedemption[]
+  nfcDevices       NfcDevice[]
+  campaigns        Campaign[]
+  auditLogs        AuditLog[]
+  walletPasses     WalletPass[]
+  invites          StaffInvite[]
+  consentRecords   ConsentRecord[]
+  subscription     Subscription?
+  idempotencyKeys  IdempotencyKey[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  phone        String?
+  isActive     Boolean  @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  staffMemberships StaffMembership[]
+  refreshTokens    RefreshToken[]
+}
+
+model StaffMembership {
+  id          String   @id @default(cuid())
+  businessId  String
+  userId      String
+  role        Role     @default(STAFF)
+  permissions String[] @default([])
+  locationIds String[] @default([])
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, userId])
+  @@index([businessId])
+}
+
+model StaffInvite {
+  id          String    @id @default(cuid())
+  businessId  String
+  email       String
+  name        String
+  role        Role      @default(STAFF)
+  permissions String[]  @default([])
+  locationIds String[]  @default([])
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, email])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  userAgent String?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Location {
+  id          String   @id @default(cuid())
+  businessId  String
+  name        String
+  addressLine String?
+  city        String?
+  phone       String?
+  timezone    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  business     Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  nfcDevices   NfcDevice[]
+  transactions Transaction[]
+  redemptions  RewardRedemption[]
+  customers    Customer[]
+
+  @@index([businessId])
+}
+
+model Customer {
+  id               String         @id @default(cuid())
+  businessId       String
+  firstName        String
+  lastName         String?
+  phone            String?
+  email            String?
+  birthday         DateTime?      @db.Date
+  marketingConsent Boolean        @default(false)
+  status           CustomerStatus @default(ACTIVE)
+  locationId       String?
+  notes            String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  deletedAt        DateTime?
+
+  business       Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  location       Location?           @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  memberships    LoyaltyMembership[]
+  transactions   Transaction[]
+  redemptions    RewardRedemption[]
+  consentRecords ConsentRecord[]
+
+  @@unique([businessId, phone])
+  @@unique([businessId, email])
+  @@index([businessId, createdAt])
+  @@index([businessId, lastName])
+}
+
+model LoyaltyProgram {
+  id                        String   @id @default(cuid())
+  businessId                String
+  name                      String
+  description               String?
+  stampsRequired            Int      @default(10)
+  rewardName                String   @default("Free coffee")
+  rewardDescription         String?
+  rewardImageUrl            String?
+  rewardExpiryDays          Int?
+  allowedStampAmounts       Int[]    @default([1, 2, 3, 5, 10])
+  maxStampsPerVisit         Int      @default(10)
+  selfServiceCooldownSeconds Int     @default(900)
+  shareAcrossLocations      Boolean  @default(true)
+  isActive                  Boolean  @default(true)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  business    Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  memberships LoyaltyMembership[]
+  rewards     Reward[]
+
+  @@index([businessId])
+}
+
+model LoyaltyMembership {
+  id              String           @id @default(cuid())
+  businessId      String
+  customerId      String
+  programId       String
+  /// Opaque code shown as the QR on both wallet platforms and on the member web page.
+  memberCode      String           @unique
+  stamps          Int              @default(0)
+  totalStamps     Int              @default(0)
+  rewardsEarned   Int              @default(0)
+  rewardsRedeemed Int              @default(0)
+  status          MembershipStatus @default(ACTIVE)
+  joinedAt        DateTime         @default(now())
+  lastActivityAt  DateTime?
+  lastStampAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  business     Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer     Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  program      LoyaltyProgram     @relation(fields: [programId], references: [id], onDelete: Cascade)
+  walletPasses WalletPass[]
+  transactions Transaction[]
+  redemptions  RewardRedemption[]
+
+  @@unique([customerId, programId])
+  @@index([businessId, lastActivityAt])
+}
+
+model WalletPass {
+  id           String         @id @default(cuid())
+  businessId   String
+  membershipId String
+  platform     WalletPlatform
+  serialNumber String         @unique
+  /// Apple: authentication token for the pass web service (hashed compare not needed, it is a bearer token we issue).
+  authToken    String?
+  /// Google: fully-qualified object id "issuerId.objectSuffix".
+  externalId   String?
+  classId      String?
+  lastPushedAt DateTime?
+  updatedTag   DateTime       @default(now())
+  revokedAt    DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  business    Business                  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  membership  LoyaltyMembership         @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  registrations WalletDeviceRegistration[]
+
+  @@unique([membershipId, platform])
+  @@index([businessId])
+}
+
+model WalletDeviceRegistration {
+  id                 String   @id @default(cuid())
+  passId             String
+  deviceLibraryId    String
+  pushToken          String
+  passTypeIdentifier String
+  createdAt          DateTime @default(now())
+
+  pass WalletPass @relation(fields: [passId], references: [id], onDelete: Cascade)
+
+  @@unique([passId, deviceLibraryId])
+  @@index([deviceLibraryId])
+}
+
+model NfcDevice {
+  id            String    @id @default(cuid())
+  businessId    String
+  locationId    String?
+  label         String
+  code          String    @unique
+  secretHash    String
+  isActive      Boolean   @default(true)
+  lastActivityAt DateTime?
+  tapCount      Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  location     Location?     @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  transactions Transaction[]
+
+  @@index([businessId])
+}
+
+model Transaction {
+  id             String             @id @default(cuid())
+  businessId     String
+  customerId     String
+  membershipId   String
+  locationId     String?
+  nfcDeviceId    String?
+  staffUserId    String?
+  type           TransactionType
+  channel        TransactionChannel @default(STAFF_APP)
+  amount         Int                @default(0)
+  balanceAfter   Int                @default(0)
+  note           String?
+  idempotencyKey String?
+  createdAt      DateTime           @default(now())
+
+  business   Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer   Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  membership LoyaltyMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  location   Location?         @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  nfcDevice  NfcDevice?        @relation(fields: [nfcDeviceId], references: [id], onDelete: SetNull)
+
+  @@unique([businessId, idempotencyKey])
+  @@index([businessId, createdAt])
+  @@index([membershipId, createdAt])
+  @@index([businessId, staffUserId, createdAt])
+}
+
+model Reward {
+  id             String   @id @default(cuid())
+  businessId     String
+  programId      String?
+  name           String
+  description    String?
+  imageUrl       String?
+  stampsRequired Int      @default(10)
+  expiryDays     Int?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  business    Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  program     LoyaltyProgram?    @relation(fields: [programId], references: [id], onDelete: Cascade)
+  redemptions RewardRedemption[]
+
+  @@index([businessId])
+}
+
+model RewardRedemption {
+  id           String    @id @default(cuid())
+  businessId   String
+  customerId   String
+  membershipId String
+  rewardId     String?
+  locationId   String?
+  staffUserId  String?
+  stampsSpent  Int       @default(0)
+  earnedAt     DateTime  @default(now())
+  redeemedAt   DateTime?
+  expiresAt    DateTime?
+  note         String?
+  createdAt    DateTime  @default(now())
+
+  business   Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer   Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  membership LoyaltyMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  reward     Reward?           @relation(fields: [rewardId], references: [id], onDelete: SetNull)
+  location   Location?         @relation(fields: [locationId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, redeemedAt])
+  @@index([membershipId])
+}
+
+model Campaign {
+  id              String       @id @default(cuid())
+  businessId      String
+  name            String
+  type            CampaignType
+  message         String
+  segments        String[]     @default([])
+  startsAt        DateTime?
+  endsAt          DateTime?
+  stampMultiplier Int          @default(1)
+  isActive        Boolean      @default(true)
+  lastRunAt       DateTime?
+  sentCount       Int          @default(0)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  businessId   String
+  actorUserId  String?
+  actorLabel   String
+  action       String
+  targetType   String?
+  targetId     String?
+  metadata     Json?
+  ip           String?
+  createdAt    DateTime @default(now())
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, createdAt])
+}
+
+model ConsentRecord {
+  id         String   @id @default(cuid())
+  businessId String
+  customerId String
+  type       String   @default("MARKETING")
+  granted    Boolean
+  source     String   @default("join_page")
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, customerId])
+}
+
+model Subscription {
+  id                 String             @id @default(cuid())
+  businessId         String             @unique
+  plan               String             @default("starter")
+  status             SubscriptionStatus @default(TRIALING)
+  trialEndsAt        DateTime?
+  currentPeriodEnd   DateTime?
+  stripeCustomerId   String?
+  stripeSubscriptionId String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model IdempotencyKey {
+  id         String   @id @default(cuid())
+  businessId String
+  scope      String
+  key        String
+  response   Json?
+  createdAt  DateTime @default(now())
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, scope, key])
+  @@index([createdAt])
+}

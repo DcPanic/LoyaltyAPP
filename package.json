@@ -1,0 +1,23 @@
+{
+  "name": "loyaltyapp",
+  "private": true,
+  "version": "0.1.0",
+  "description": "LoyaltyApp — multi-tenant SaaS loyalty & CRM platform for cafes (Apple/Google Wallet, NFC, QR)",
+  "workspaces": [
+    "packages/*",
+    "apps/api",
+    "apps/web"
+  ],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "npm run build -w @loyaltyapp/shared && npm run build -w @loyaltyapp/api && npm run build -w @loyaltyapp/web",
+    "typecheck": "npm run typecheck -w @loyaltyapp/shared && npm run typecheck -w @loyaltyapp/api && npm run typecheck -w @loyaltyapp/web",
+    "test": "npm run test -w @loyaltyapp/api",
+    "dev:api": "npm run dev -w @loyaltyapp/api",
+    "dev:web": "npm run dev -w @loyaltyapp/web",
+    "db:migrate": "npm run db:migrate -w @loyaltyapp/api",
+    "db:push": "npm run db:push -w @loyaltyapp/api",
+    "db:seed": "npm run db:seed -w @loyaltyapp/api",
+    "db:generate": "npm run db:generate -w @loyaltyapp/api"
+  }
+}
