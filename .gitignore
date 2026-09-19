@@ -21,3 +21,5 @@ npm-debug.log*
 .turbo/
 prisma/*.db
 tmp/
+*.tsbuildinfo
+next-env.d.ts
