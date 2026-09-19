@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "LoyaltyApp Staff",
+    "slug": "loyaltyapp",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "loyaltyapp",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": { "backgroundColor": "#6F4E37", "resizeMode": "contain" },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.loyaltyapp.staff",
+      "infoPlist": {
+        "NSCameraUsageDescription": "The camera is used to scan a customer's loyalty QR code."
+      }
+    },
+    "android": {
+      "package": "com.loyaltyapp.staff",
+      "adaptiveIcon": { "backgroundColor": "#6F4E37" },
+      "permissions": ["CAMERA"]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        { "cameraPermission": "The camera is used to scan a customer's loyalty QR code." }
+      ]
+    ],
+    "extra": {
+      "apiUrl": "http://localhost:4000"
+    }
+  }
+}
