@@ -1,0 +1,56 @@
+/* Chart colour roles. Light and dark steps are both selected and validated
+   against their own surface (see docs/DESIGN.md), never an automatic flip. */
+.viz-root {
+  color-scheme: light;
+  --viz-surface: var(--surface);
+  --viz-grid: #e8ded1;
+  --viz-axis: #7a6a5d;
+  --viz-series: #6f4e37;
+  --seg-new: #2a78d6;
+  --seg-active: #1baf7a;
+  --seg-vip: #eda100;
+  --seg-at_risk: #eb6834;
+  --seg-lost: #e87ba4;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme='light'])) .viz-root {
+    color-scheme: dark;
+    --viz-grid: #3b2f25;
+    --viz-axis: #a8998b;
+    --viz-series: #c08b58;
+    --seg-new: #3987e5;
+    --seg-active: #199e70;
+    --seg-vip: #c98500;
+    --seg-at_risk: #d95926;
+    --seg-lost: #d55181;
+  }
+}
+
+:root[data-theme='dark'] .viz-root {
+  color-scheme: dark;
+  --viz-grid: #3b2f25;
+  --viz-axis: #a8998b;
+  --viz-series: #c08b58;
+  --seg-new: #3987e5;
+  --seg-active: #199e70;
+  --seg-vip: #c98500;
+  --seg-at_risk: #d95926;
+  --seg-lost: #d55181;
+}
+
+.viz-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.8rem;
+  box-shadow: var(--shadow);
+  white-space: nowrap;
+  z-index: 5;
+}
+
+.viz-table { margin-top: 0.75rem; }
+.viz-table summary { cursor: pointer; color: var(--muted); font-size: 0.8rem; }
