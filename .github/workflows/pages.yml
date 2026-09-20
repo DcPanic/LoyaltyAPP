@@ -1,14 +1,16 @@
 # Publishes the clickable preview in docs/demo to GitHub Pages.
+#
+# Manual on purpose: GitHub Pages needs a paid plan on a private repository,
+# and Pages has to be switched on once under Settings -> Pages -> Source:
+# GitHub Actions before this can deploy. Run it from the Actions tab when you
+# want the preview published.
+#
 # The preview is static sample data — the real platform needs the API and a
-# database, which Pages cannot host.
+# database, which Pages cannot host. `docs/demo/index.html` also opens straight
+# from disk in a browser.
 name: Preview site
 
 on:
-  push:
-    branches: [main, 'claude/**']
-    paths:
-      - 'docs/demo/**'
-      - '.github/workflows/pages.yml'
   workflow_dispatch:
 
 permissions:

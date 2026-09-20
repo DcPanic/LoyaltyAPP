@@ -1,12 +1,33 @@
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 
-const FALLBACK = 'http://localhost:4000';
+const DEFAULT_PORT = process.env.EXPO_PUBLIC_API_PORT ?? '4000';
 
-export const API_URL: string =
-  process.env.EXPO_PUBLIC_API_URL ??
-  (Constants.expoConfig?.extra as { apiUrl?: string } | undefined)?.apiUrl ??
-  FALLBACK;
+/**
+ * Where the API lives.
+ *
+ * On a phone `localhost` is the phone itself, which is the usual reason a
+ * freshly scanned Expo Go build cannot sign in. When no URL is configured we
+ * reuse the address the bundle is being served from — the development machine —
+ * so scanning the QR code is enough on a normal Wi-Fi network.
+ */
+function resolveApiUrl(): string {
+  const explicit = process.env.EXPO_PUBLIC_API_URL;
+  if (explicit) return explicit.replace(/\/$/, '');
+
+  const extra = (Constants.expoConfig?.extra ?? {}) as { apiUrl?: string };
+  const hostUri =
+    Constants.expoConfig?.hostUri ??
+    (Constants.expoGoConfig as { debuggerHost?: string } | undefined)?.debuggerHost;
+  const host = hostUri?.split(':')[0];
+
+  if (host && host !== 'localhost' && host !== '127.0.0.1') {
+    return `http://${host}:${DEFAULT_PORT}`;
+  }
+  return extra.apiUrl ?? `http://localhost:${DEFAULT_PORT}`;
+}
+
+export const API_URL: string = resolveApiUrl();
 
 const ACCESS_KEY = 'loyaltyapp.access';
 const REFRESH_KEY = 'loyaltyapp.refresh';
@@ -93,3 +114,13 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
 
 export const newIdempotencyKey = (): string =>
   `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+
+/** A quick reachability check, so the sign-in screen can say what is wrong. */
+export async function checkApiReachable(): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_URL}/health`, { signal: AbortSignal.timeout(4000) });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}

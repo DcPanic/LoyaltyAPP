@@ -1,10 +1,10 @@
 import { Tabs, Redirect } from 'expo-router';
-import { Text } from 'react-native';
+import { Text, type ColorValue } from 'react-native';
 import { useSession } from '../../src/lib/session';
 import { theme } from '../../src/theme';
 
 function icon(symbol: string) {
-  return ({ color }: { color: string }) => <Text style={{ fontSize: 20, color }}>{symbol}</Text>;
+  return ({ color }: { color: ColorValue }) => <Text style={{ fontSize: 20, color }}>{symbol}</Text>;
 }
 
 export default function TabsLayout() {

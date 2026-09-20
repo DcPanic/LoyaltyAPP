@@ -79,6 +79,11 @@ npm run dev:web                  # http://localhost:3000
 cd apps/mobile && npm install && npx expo start
 ```
 
+Scan the QR code with **Expo Go** (Expo SDK 57). The app finds the API by
+itself from the address Expo serves the bundle on, so a phone on the same Wi-Fi
+needs no configuration — see [`apps/mobile/README.md`](apps/mobile/README.md),
+including what to do when Windows Firewall blocks it.
+
 The seed creates a demo café:
 
 | Account | Email | Password |

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { router } from 'expo-router';
-import { ApiError } from '../src/lib/api';
+import { API_URL, ApiError, checkApiReachable } from '../src/lib/api';
 import { useSession } from '../src/lib/session';
 import { Banner, Button, Card, styles } from '../src/components/ui';
 import { theme } from '../src/theme';
@@ -19,6 +19,19 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [reachable, setReachable] = useState<boolean | null>(null);
+
+  // Says plainly when the phone cannot see the API, which on a development
+  // machine is nearly always a firewall or a different Wi-Fi network.
+  useEffect(() => {
+    let cancelled = false;
+    void checkApiReachable().then((ok) => {
+      if (!cancelled) setReachable(ok);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function submit() {
     setPending(true);
@@ -27,7 +40,11 @@ export default function LoginScreen() {
       await signIn(email.trim(), password);
       router.replace('/(tabs)/stamp');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not sign in. Check your connection.');
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : `Could not reach the server at ${API_URL}. Check that the API is running and that this phone is on the same network.`,
+      );
     } finally {
       setPending(false);
     }
@@ -58,6 +75,9 @@ export default function LoginScreen() {
 
         <Card>
           {error && <Banner tone="error">{error}</Banner>}
+          {reachable === false && !error && (
+            <Banner tone="error">Cannot reach the API at {API_URL}</Banner>
+          )}
           <View>
             <Text style={styles.label}>Email</Text>
             <TextInput
@@ -87,6 +107,10 @@ export default function LoginScreen() {
 
         <Text style={[styles.muted, { textAlign: 'center' }]}>
           Staff accounts are created by the café owner from the dashboard.
+        </Text>
+        <Text style={[styles.muted, { textAlign: 'center', fontSize: 11 }]}>
+          {reachable === true ? '● connected to ' : 'server: '}
+          {API_URL}
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>
