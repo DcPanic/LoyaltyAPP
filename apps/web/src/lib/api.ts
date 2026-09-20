@@ -1,6 +1,13 @@
 import { cookies } from 'next/headers';
 
-const API_URL = process.env.API_URL ?? 'http://localhost:4000';
+/**
+ * The API's address. A hosting platform usually supplies its services'
+ * hostnames rather than full URLs, so accept either and never make someone
+ * paste a URL back in after the first deploy.
+ */
+const API_URL =
+  process.env.API_URL ??
+  (process.env.API_HOST ? `https://${process.env.API_HOST}` : 'http://localhost:4000');
 
 export class ApiError extends Error {
   constructor(

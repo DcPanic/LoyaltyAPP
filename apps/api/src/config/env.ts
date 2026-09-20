@@ -13,10 +13,14 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
 
   /** Public URL of the web app (join pages, NFC tap pages, dashboard). */
-  APP_URL: z.string().url().default('http://localhost:3000'),
+  APP_URL: z.string().url().optional(),
   /** Public URL of this API — Wallet passes call back to it. */
-  API_URL: z.string().url().default('http://localhost:4000'),
-  CORS_ORIGINS: z.string().default('http://localhost:3000'),
+  API_URL: z.string().url().optional(),
+  CORS_ORIGINS: z.string().optional(),
+
+  /** Hostnames a platform can inject instead of full URLs (see resolveUrls). */
+  APP_HOST: z.string().optional(),
+  RENDER_EXTERNAL_URL: z.string().optional(),
 
   JWT_SECRET: z.string().min(32),
   ACCESS_TOKEN_TTL: z.string().default('15m'),
@@ -48,7 +52,27 @@ const envSchema = z.object({
   LOG_LEVEL: z.string().default('info'),
 });
 
-export type Env = z.infer<typeof envSchema>;
+export type Env = z.infer<typeof envSchema> & {
+  APP_URL: string;
+  API_URL: string;
+  CORS_ORIGINS: string;
+};
+
+/**
+ * Hosting platforms hand out a hostname, not a full URL, and only once the
+ * service exists. Rather than making someone paste URLs back into a dashboard
+ * after the first deploy, fill them in from what the platform provides:
+ * Render injects RENDER_EXTERNAL_URL for this service, and the blueprint passes
+ * the web service's hostname as APP_HOST.
+ */
+function resolveUrls(parsed: z.infer<typeof envSchema>): Env {
+  const apiUrl =
+    parsed.API_URL ?? parsed.RENDER_EXTERNAL_URL ?? `http://localhost:${parsed.PORT}`;
+  const appUrl = parsed.APP_URL ?? (parsed.APP_HOST ? `https://${parsed.APP_HOST}` : 'http://localhost:3000');
+  const corsOrigins = parsed.CORS_ORIGINS ?? [appUrl, 'http://localhost:3000'].join(',');
+
+  return { ...parsed, API_URL: apiUrl, APP_URL: appUrl, CORS_ORIGINS: corsOrigins };
+}
 
 function load(): Env {
   const parsed = envSchema.safeParse(process.env);
@@ -56,7 +80,7 @@ function load(): Env {
     const issues = parsed.error.issues.map((i) => `  - ${i.path.join('.')}: ${i.message}`).join('\n');
     throw new Error(`Invalid environment configuration:\n${issues}`);
   }
-  return parsed.data;
+  return resolveUrls(parsed.data);
 }
 
 export const env: Env = load();

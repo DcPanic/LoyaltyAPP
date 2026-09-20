@@ -7,7 +7,10 @@
     "scheme": "loyaltyapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "splash": { "backgroundColor": "#6F4E37", "resizeMode": "contain" },
+    "splash": {
+      "backgroundColor": "#6F4E37",
+      "resizeMode": "contain"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.loyaltyapp.staff",
@@ -17,18 +20,34 @@
     },
     "android": {
       "package": "com.loyaltyapp.staff",
-      "adaptiveIcon": { "backgroundColor": "#6F4E37" },
-      "permissions": ["CAMERA"]
+      "adaptiveIcon": {
+        "backgroundColor": "#6F4E37"
+      },
+      "permissions": [
+        "CAMERA"
+      ]
     },
     "plugins": [
       "expo-router",
       [
         "expo-camera",
-        { "cameraPermission": "The camera is used to scan a customer's loyalty QR code." }
+        {
+          "cameraPermission": "The camera is used to scan a customer's loyalty QR code."
+        }
       ]
     ],
     "extra": {
-      "apiUrl": "http://localhost:4000"
+      "apiUrl": "http://localhost:4000",
+      "router": {},
+      "eas": {}
+    },
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
     }
   }
 }

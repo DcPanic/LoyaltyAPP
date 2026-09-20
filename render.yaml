@@ -1,0 +1,83 @@
+# One-click deployment: Render reads this file and creates everything —
+# the database, the API and the web app — with the right settings.
+#
+# In the Render dashboard: New -> Blueprint -> pick this repository -> Apply.
+#
+# The plans below are the free ones, which is enough to try the platform from
+# anywhere. Two things to know about free on Render: a service goes to sleep
+# after 15 minutes without traffic and takes about a minute to wake up, and a
+# free database is removed after 30 days. Change `plan: free` to `plan: starter`
+# (services) and `plan: basic-256mb` (database) when it stops being a test.
+
+databases:
+  - name: loyaltyapp-db
+    databaseName: loyaltyapp
+    user: loyaltyapp
+    region: frankfurt
+    plan: free
+
+services:
+  # ---------------------------------------------------------------- API ----
+  - type: web
+    name: loyaltyapp-api
+    runtime: node
+    region: frankfurt
+    plan: free
+    buildCommand: npm ci && npm run build -w @loyaltyapp/shared && npm run build -w @loyaltyapp/api
+    # Migrations run before the server starts, so a schema change deploys itself.
+    startCommand: npm run db:deploy -w @loyaltyapp/api && npm start -w @loyaltyapp/api
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: loyaltyapp-db
+          property: connectionString
+      # Generated once and kept secret: it signs every session and member token.
+      - key: JWT_SECRET
+        generateValue: true
+      # The API builds its own public address from RENDER_EXTERNAL_URL, and
+      # learns the web app's address from here.
+      - key: APP_HOST
+        fromService:
+          type: web
+          name: loyaltyapp-web
+          property: host
+      - key: LOG_LEVEL
+        value: info
+      # Wallet credentials are added in the dashboard, never committed.
+      # See docs/WALLET.md for what each one is.
+      - key: APPLE_PASS_TYPE_IDENTIFIER
+        sync: false
+      - key: APPLE_TEAM_IDENTIFIER
+        sync: false
+      - key: APPLE_PASS_CERT_PEM
+        sync: false
+      - key: APPLE_PASS_KEY_PEM
+        sync: false
+      - key: APPLE_WWDR_CERT_PEM
+        sync: false
+      - key: GOOGLE_WALLET_ISSUER_ID
+        sync: false
+      - key: GOOGLE_WALLET_SA_EMAIL
+        sync: false
+      - key: GOOGLE_WALLET_SA_PRIVATE_KEY
+        sync: false
+
+  # ------------------------------------------------------------- web app ----
+  - type: web
+    name: loyaltyapp-web
+    runtime: node
+    region: frankfurt
+    plan: free
+    buildCommand: npm ci && npm run build -w @loyaltyapp/shared && npm run build -w @loyaltyapp/web
+    startCommand: npm start -w @loyaltyapp/web
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: API_HOST
+        fromService:
+          type: web
+          name: loyaltyapp-api
+          property: host

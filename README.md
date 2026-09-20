@@ -127,10 +127,19 @@ npm run typecheck                # shared, api and web
 The tests need a PostgreSQL instance; set `TEST_DATABASE_URL` if it is not
 `postgresql://postgres:postgres@localhost:5432/loyaltyapp_test`.
 
+## Putting it online
+
+`render.yaml` deploys the database, the API and the web app together from a
+browser, with no terminal: Render → **New → Blueprint** → this repository →
+**Apply**. The services discover each other's addresses on their own. Publishing
+the mobile app to Expo Go is a separate, optional step. Both are written up in
+[`docs/DEPLOY.md`](docs/DEPLOY.md).
+
 ## Documentation
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — how the pieces fit together
 - [`docs/WALLET.md`](docs/WALLET.md) — Apple and Google Wallet without a pass provider
 - [`docs/NFC.md`](docs/NFC.md) — the low-cost NFC stamp and how a tap becomes a stamp
 - [`docs/SECURITY.md`](docs/SECURITY.md) — tenancy, fraud controls, GDPR
+- [`docs/DEPLOY.md`](docs/DEPLOY.md) — hosting it online and publishing to Expo Go
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — what is deliberately left for later

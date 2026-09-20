@@ -16,14 +16,19 @@ function resolveApiUrl(): string {
   if (explicit) return explicit.replace(/\/$/, '');
 
   const extra = (Constants.expoConfig?.extra ?? {}) as { apiUrl?: string };
-  const hostUri =
-    Constants.expoConfig?.hostUri ??
-    (Constants.expoGoConfig as { debuggerHost?: string } | undefined)?.debuggerHost;
-  const host = hostUri?.split(':')[0];
 
-  if (host && host !== 'localhost' && host !== '127.0.0.1') {
-    return `http://${host}:${DEFAULT_PORT}`;
+  // Only while developing: a published preview has no dev server to borrow an
+  // address from, and must talk to the hosted API instead.
+  if (__DEV__) {
+    const hostUri =
+      Constants.expoConfig?.hostUri ??
+      (Constants.expoGoConfig as { debuggerHost?: string } | undefined)?.debuggerHost;
+    const host = hostUri?.split(':')[0];
+    if (host && host !== 'localhost' && host !== '127.0.0.1') {
+      return `http://${host}:${DEFAULT_PORT}`;
+    }
   }
+
   return extra.apiUrl ?? `http://localhost:${DEFAULT_PORT}`;
 }
 
