@@ -14,8 +14,10 @@
  * skips the local API and its tunnel, and points the app at an already hosted
  * one — then this computer only serves the app's code.
  */
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import process from 'node:process';
+
+const isWindows = process.platform === 'win32';
 
 const args = process.argv.slice(2);
 const apiFlag = args.indexOf('--api');
@@ -52,20 +54,31 @@ function run(command, { cwd, env, name, onLine } = {}) {
 }
 
 function stopAll() {
+  if (shuttingDown) return;
   shuttingDown = true;
+
   for (const child of children) {
     try {
-      child.kill('SIGTERM');
+      // On Windows a signal only reaches the shell, leaving the API and Metro
+      // running and port 4000 busy next time. Kill the whole tree instead.
+      if (isWindows && child.pid) {
+        spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+      } else {
+        child.kill('SIGTERM');
+      }
     } catch {
       /* already gone */
     }
   }
 }
 
-process.on('SIGINT', () => {
-  stopAll();
-  process.exit(0);
-});
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+  process.on(signal, () => {
+    console.log('\nStopping…');
+    stopAll();
+    process.exit(0);
+  });
+}
 process.on('exit', stopAll);
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -127,13 +140,18 @@ async function main() {
   let apiUrl = hostedApi;
 
   if (!apiUrl) {
-    console.log('→ Starting the API…');
-    run('npm run dev:api', { name: 'api' });
+    // Reuse an API that is already running rather than fighting over the port.
+    if (await waitForApi(3000)) {
+      console.log('✓ Using the API already running on this computer');
+    } else {
+      console.log('→ Starting the API…');
+      run('npm run dev:api', { name: 'api' });
+    }
 
     if (!(await waitForApi())) {
       console.error(
-        '\nThe API did not start. Check that PostgreSQL is running and that ' +
-          'apps/api/.env exists, then try again.',
+        '\nThe API did not start.\n' +
+          'Run "npm run setup" first — it prepares the database and the settings file.\n',
       );
       process.exit(1);
     }

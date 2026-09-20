@@ -1,5 +1,15 @@
-import 'dotenv/config';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { config as loadDotenv } from 'dotenv';
 import { z } from 'zod';
+
+// Read apps/api/.env wherever the process was started from: dotenv's default
+// is the working directory, which makes the API fail confusingly when it is
+// launched from the repository root.
+loadDotenv({
+  path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '.env'),
+});
+loadDotenv();
 
 const bool = (def: boolean) =>
   z

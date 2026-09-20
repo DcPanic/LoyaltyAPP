@@ -163,5 +163,7 @@ All of it, with what each option costs, is in
 - [`docs/WALLET.md`](docs/WALLET.md) — Apple and Google Wallet without a pass provider
 - [`docs/NFC.md`](docs/NFC.md) — the low-cost NFC stamp and how a tap becomes a stamp
 - [`docs/SECURITY.md`](docs/SECURITY.md) — tenancy, fraud controls, GDPR
+- [`docs/ΟΔΗΓΟΣ.md`](docs/ΟΔΗΓΟΣ.md) — step-by-step in Greek, from installing Node
+  to scanning the QR code (written for someone who does not write code)
 - [`docs/DEPLOY.md`](docs/DEPLOY.md) — hosting it online and publishing to Expo Go
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — what is deliberately left for later
