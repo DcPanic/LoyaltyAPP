@@ -53,6 +53,7 @@ function passContext(
     primaryColor: m.business.primaryColor,
     secondaryColor: m.business.secondaryColor,
     logoUrl: m.business.logoUrl,
+    rewardImageUrl: m.program.rewardImageUrl,
     contactPhone: m.business.contactPhone,
     addressLine: [m.business.addressLine, m.business.city].filter(Boolean).join(', ') || null,
     privacyPolicyUrl: m.business.privacyPolicyUrl,
@@ -111,6 +112,7 @@ export async function buildGoogleSaveUrl(membershipId: string): Promise<string> 
     rewardName: m.program.rewardName,
     primaryColor: m.business.primaryColor,
     logoUrl: m.business.logoUrl,
+    rewardImageUrl: m.program.rewardImageUrl,
     homepageUrl: `${env.APP_URL}/c/${m.business.slug}`,
   });
   await upsertLoyaltyObject({

@@ -21,6 +21,8 @@ export interface PassContext {
   primaryColor: string;
   secondaryColor: string;
   logoUrl?: string | null;
+  /** Picture of the reward, shown as the band across the card. */
+  rewardImageUrl?: string | null;
   contactPhone?: string | null;
   addressLine?: string | null;
   privacyPolicyUrl?: string | null;
@@ -165,7 +167,9 @@ export async function buildPkPass(ctx: PassContext): Promise<Buffer> {
 
   const logo = (await fetchImage(ctx.logoUrl)) ?? solidPng(160, 50, ctx.primaryColor);
   const icon = (await fetchImage(ctx.logoUrl)) ?? solidPng(58, 58, ctx.primaryColor);
-  const strip = solidPng(750, 196, ctx.secondaryColor);
+  // The band across the card is the café's own picture of the reward when they
+  // have given us one; a plain colour is the fallback, not the intention.
+  const strip = (await fetchImage(ctx.rewardImageUrl)) ?? solidPng(750, 196, ctx.secondaryColor);
 
   const files: Record<string, Buffer> = {
     'pass.json': passJson,

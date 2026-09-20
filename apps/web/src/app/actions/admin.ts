@@ -80,6 +80,7 @@ export async function updateProgramAction(
       stampsRequired: num(form, 'stampsRequired'),
       rewardName: str(form, 'rewardName'),
       rewardDescription: str(form, 'rewardDescription') ?? null,
+      rewardImageUrl: str(form, 'rewardImageUrl') ?? null,
       rewardExpiryDays: num(form, 'rewardExpiryDays') ?? null,
       allowedStampAmounts: amounts && amounts.length > 0 ? amounts : undefined,
       maxStampsPerVisit: num(form, 'maxStampsPerVisit'),

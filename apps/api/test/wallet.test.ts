@@ -97,6 +97,17 @@ describe('Apple Wallet pass', () => {
     expect(stampVisual(3, 10)).toBe('●●●○○○○○○○');
   });
 
+  it('falls back to the secondary colour when the reward picture cannot be fetched', async () => {
+    // A café can point at a picture that later moves or goes offline. The card
+    // must still build: artwork is decoration, the balance is the point.
+    const zip = await JSZip.loadAsync(
+      await buildPkPass({ ...context(), rewardImageUrl: 'https://127.0.0.1:1/gone.png' }),
+    );
+    const strip = await zip.file('strip.png')!.async('nodebuffer');
+    expect(strip.length).toBeGreaterThan(0);
+    expect(strip.subarray(1, 4).toString('ascii')).toBe('PNG');
+  });
+
   it('produces a signed .pkpass whose manifest matches every file', async () => {
     const buffer = await buildPkPass(context());
     const zip = await JSZip.loadAsync(buffer);

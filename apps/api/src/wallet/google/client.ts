@@ -67,6 +67,8 @@ export interface GoogleClassInput {
   rewardName: string;
   primaryColor: string;
   logoUrl?: string | null;
+  /** Picture of the reward, shown across the top of the card. */
+  rewardImageUrl?: string | null;
   homepageUrl: string;
 }
 
@@ -94,6 +96,14 @@ function classBody(input: GoogleClassInput) {
           programLogo: {
             sourceUri: { uri: input.logoUrl },
             contentDescription: { defaultValue: { language: 'en', value: input.businessName } },
+          },
+        }
+      : {}),
+    ...(input.rewardImageUrl
+      ? {
+          heroImage: {
+            sourceUri: { uri: input.rewardImageUrl },
+            contentDescription: { defaultValue: { language: 'en', value: input.rewardName } },
           },
         }
       : {}),
