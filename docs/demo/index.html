@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LoyaltyApp Preview</title>
+    <meta
+      name="description"
+      content="Clickable preview of LoyaltyApp: the café loyalty platform with Apple/Google Wallet cards, NFC stamping and a staff console."
+    />
+    <meta name="theme-color" content="#6F4E37" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%236F4E37'/%3E%3Ctext x='32' y='33' font-size='34' text-anchor='middle' dominant-baseline='central'%3E%E2%98%95%3C/text%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="demo.css" />
+  </head>
+  <body>
+    <header class="preview-bar">
+      <div class="inner">
+        <div class="preview-title">
+          <span class="brand-mark">☕</span>
+          <span>LoyaltyApp <small class="hint">preview</small></span>
+        </div>
+        <div class="tabs" role="tablist" aria-label="Who is using the app">
+          <button role="tab" aria-selected="true" data-view="customer">☕ Customer</button>
+          <button role="tab" aria-selected="false" data-view="staff">🧑‍🍳 Barista</button>
+          <button role="tab" aria-selected="false" data-view="owner">📊 Owner</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="preview-note">
+      <div class="alert info">
+        This is a static preview with sample data — it runs entirely in your browser so you can
+        click through the screens. The real platform runs on your own server with a database,
+        genuine Apple and Google Wallet passes and live NFC tags.
+        <strong>Everything you stamp here updates across all three views</strong>, exactly as it
+        does in the real app.
+      </div>
+    </div>
+
+    <main class="stage">
+      <!-- ------------------------------------------------ customer ------ -->
+      <section id="view-customer" class="stage-grid">
+        <div>
+          <div class="phone">
+            <div class="notch"></div>
+            <div class="screen">
+              <div class="public" id="customer-screen"></div>
+            </div>
+          </div>
+          <p class="center hint" style="margin-top: 0.75rem">
+            The customer's phone — no app installed
+          </p>
+        </div>
+
+        <div>
+          <h2>How a customer joins and collects</h2>
+          <p class="hint">
+            They scan the QR on the counter, fill in their name, and the card lands in Apple Wallet
+            or Google Wallet. After that a tap on the NFC stamp is the whole interaction.
+          </p>
+
+          <div class="steps" id="customer-steps"></div>
+
+          <div class="card" style="margin-top: 1rem">
+            <h3>Try the NFC stamp</h3>
+            <p class="hint">
+              This is the 3D-printed stamp on the counter with a cheap NFC sticker inside. Tap it
+              the way a customer would tap their phone on it.
+            </p>
+            <button class="nfc-stamp" id="nfc-button" title="Tap to stamp">☕</button>
+            <p class="center hint" id="nfc-hint" style="margin-top: 0.75rem">
+              Get the card first, then tap
+            </p>
+          </div>
+
+          <div class="card">
+            <h3>What the wallet card shows</h3>
+            <p class="hint" style="margin-bottom: 0.5rem">
+              One card per café, updated on every stamp — never a new pass.
+            </p>
+            <div id="wallet-preview"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- --------------------------------------------------- staff ------ -->
+      <section id="view-staff" class="stage-grid" hidden>
+        <div>
+          <div class="phone">
+            <div class="notch"></div>
+            <div class="screen" id="staff-screen"></div>
+          </div>
+          <p class="center hint" style="margin-top: 0.75rem">
+            The barista's phone — React Native app or mobile web
+          </p>
+        </div>
+
+        <div>
+          <h2>Stamping at the counter, on the phone, for delivery</h2>
+          <p class="hint">
+            The barista scans the customer's QR, or searches by name or phone when the customer
+            is not there — a telephone or delivery order is stamped the same way.
+          </p>
+
+          <div class="card">
+            <h3>Staff see only what they need</h3>
+            <table>
+              <tbody>
+                <tr><td>Find a customer and add stamps</td><td><span class="badge ok">allowed</span></td></tr>
+                <tr><td>Redeem a reward (if the owner enables it)</td><td><span class="badge ok">allowed</span></td></tr>
+                <tr><td>Customer CRM, exports, analytics</td><td><span class="badge off">blocked</span></td></tr>
+                <tr><td>Billing, settings, staff management</td><td><span class="badge off">blocked</span></td></tr>
+              </tbody>
+            </table>
+            <p class="hint" style="margin: 0.75rem 0 0">
+              The server enforces this, not the screen: a blocked request is refused even if someone
+              calls the API directly.
+            </p>
+          </div>
+
+          <div class="card">
+            <h3>Every stamp is recorded once</h3>
+            <p class="hint" style="margin-bottom: 0">
+              A double tap, a retry on a flaky connection or a refreshed page cannot add a second
+              stamp — each request carries an id the database enforces as unique.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- --------------------------------------------------- owner ------ -->
+      <section id="view-owner" hidden>
+        <div class="browser">
+          <div class="chrome">
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            <span class="url">https://your-cafe.example/dashboard</span>
+          </div>
+          <div class="viewport">
+            <div class="owner-shell">
+              <nav class="owner-nav" aria-label="Dashboard sections">
+                <span class="on">▤ Dashboard</span>
+                <span>☕ Stamp customer</span>
+                <span>👥 Customers</span>
+                <span>🎫 Loyalty</span>
+                <span>🎁 Rewards</span>
+                <span>📣 Campaigns</span>
+                <span>🔔 Notifications</span>
+                <span>📈 Analytics</span>
+                <span>🧑‍🍳 Staff</span>
+                <span>📍 Locations</span>
+                <span>📶 NFC tags</span>
+                <span>🗒 Activity log</span>
+                <span>💳 Wallet cards</span>
+                <span>⚙ Settings</span>
+                <span>💳 Billing</span>
+              </nav>
+              <div id="owner-screen"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>
+        Source and setup instructions:
+        <a href="https://github.com/DcPanic/LoyaltyAPP">github.com/DcPanic/LoyaltyAPP</a> ·
+        Wallet setup in <code>docs/WALLET.md</code>
+      </p>
+    </footer>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="demo.js"></script>
+  </body>
+</html>
