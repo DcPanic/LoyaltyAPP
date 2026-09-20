@@ -228,6 +228,7 @@ textarea { min-height: 90px; resize: vertical; }
 .btn.lg { padding: 0.95rem 1.4rem; font-size: 1.05rem; }
 
 .row { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; }
+.topbar form.row { flex-wrap: nowrap; }
 .spread { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
 
 /* ------------------------------------------------------------- tables ---- */

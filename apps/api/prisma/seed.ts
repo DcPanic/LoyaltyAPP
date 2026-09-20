@@ -155,6 +155,20 @@ async function main(): Promise<void> {
         },
       });
 
+      await prisma.transaction.create({
+        data: {
+          businessId: business.id,
+          customerId: customer.id,
+          membershipId: membership.id,
+          locationId: locations[i % locations.length]!.id,
+          type: 'JOIN',
+          channel: 'QR',
+          amount: 0,
+          balanceAfter: 0,
+          createdAt: joinedAt,
+        },
+      });
+
       // Spread visits between the join date and today.
       const visits = Math.floor(Math.random() * 18);
       let balance = 0;
