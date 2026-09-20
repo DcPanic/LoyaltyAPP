@@ -1,89 +1,110 @@
 # Putting it online
 
-Two separate things, in this order:
+The platform needs three pieces running somewhere: a **database**, the **API**
+and the **web app**. The phone app and the customer's wallet card are clients of
+those — they hold no data of their own, which is exactly why a barista, a
+customer and the owner all see the same balance.
 
-1. **Host the platform** — the API, the database and the web app. Once this is
-   done, everything works from anywhere: the owner dashboard, the staff
-   stamping screen, the customer join page and the wallet cards.
-2. **Publish the mobile app** to an Expo account, so it can be opened in Expo
-   Go on a phone.
+There is no way to run this without a server. Keeping everything on one phone,
+the way a personal notes or CRM app can, would mean every phone had its own
+separate truth.
 
-Step 1 is done entirely in a browser. Step 2 needs a terminal once.
+## What it costs
 
-## 1. Host it — Render blueprint
+| Setup | Cost | Sleeps? | Deleted? |
+|---|---|---|---|
+| **Neon + Render free** | €0 | Services sleep after 15 min idle, ~1 min to wake | Nothing is deleted |
+| **Neon + Vercel free** | €0 | No | Nothing is deleted |
+| **Neon + Render starter** | ~$14 / month | No | No |
 
-`render.yaml` in the repository root describes the whole deployment: a
-PostgreSQL database, the API and the web app, wired to each other.
+Free is genuinely free on all three: Neon's free project does not expire, and
+neither Render nor Vercel delete a free service. Only Render's *own* free
+database expires after 30 days, which is why the database lives on Neon instead.
 
-1. Create an account at <https://render.com> and connect GitHub (Render works
-   with private repositories).
-2. **New → Blueprint** → pick the `LoyaltyAPP` repository → **Apply**.
-3. Wait for the three services to go green (the first build takes a few
-   minutes).
-4. Open the web service's URL and register your café at `/register`.
+Vercel's free plan is for non-commercial use — the moment the platform earns
+money, that one needs their paid plan.
 
-That is all. The services find each other's addresses by themselves:
+## 1. The database — Neon (both routes)
 
-- the API takes its own public address from `RENDER_EXTERNAL_URL`, which is what
-  wallet passes call back to;
-- the API learns the web app's address from `APP_HOST`, for join links;
-- the web app learns the API's address from `API_HOST`;
-- `JWT_SECRET` is generated once by Render and never leaves it.
+1. Sign up at <https://neon.tech> and create a project (region: Frankfurt).
+2. Copy the **connection string** — it looks like
+   `postgresql://user:password@ep-something.eu-central-1.aws.neon.tech/neondb?sslmode=require`.
 
-### What the free plan means
+Keep it handy; it is the only value you have to paste by hand. Prefer the
+**pooled** connection string when Neon offers a choice.
 
-The blueprint uses free plans, which are enough to try the platform:
+## 2a. The API and web app — Render
 
-| | Free | What to change for real use |
-|---|---|---|
-| API and web | Sleep after 15 minutes idle, ~1 minute to wake | `plan: starter` |
-| Database | Removed after 30 days | `plan: basic-256mb` |
+`render.yaml` in the repository describes both services and connects them.
 
-A sleeping service is fine while testing and wrong for a café: a customer
-scanning the join QR would wait a minute. Change the plans before real
-customers touch it.
+1. Sign up at <https://render.com>, connect GitHub (private repositories work).
+2. **New → Blueprint** → pick `LoyaltyAPP` → **Apply**.
+3. Render asks for `DATABASE_URL` → paste the Neon connection string. Leave the
+   Apple and Google values empty for now.
+4. Wait for both services to go green; the first build takes a few minutes.
+5. Open the web service's address and register your café at `/register`.
 
-### Wallet credentials
+Addresses wire themselves up: the API takes its own from `RENDER_EXTERNAL_URL`
+(this is what wallet passes call back to) and the web app's from `APP_HOST`;
+the web app gets the API's from `API_HOST`.
 
-The Apple and Google values in `render.yaml` are marked `sync: false`, so Render
-asks for them instead of reading them from the repository. Leave them empty
-until you have them — everything else works, and the **Wallet cards** page in
-the dashboard shows what is still missing. See [`WALLET.md`](WALLET.md).
+## 2b. The API and web app — Vercel
 
-## 2. Publish the mobile app to Expo Go
+Same repository, two projects, no sleeping.
 
-This needs Node.js on your computer and a terminal, once. Everything after that
-is a single command.
+1. Sign up at <https://vercel.com> and import the repository **twice**:
+   - **API project** — root directory: the repository root. `vercel.json` there
+     already points at the serverless entry in `api/index.ts`.
+     Environment variables: `DATABASE_URL` (Neon), `JWT_SECRET` (any long random
+     string), `API_URL` (this project's own URL, after the first deploy) and
+     `APP_URL` (the web project's URL).
+   - **Web project** — root directory: `apps/web`. Environment variable:
+     `API_URL` = the API project's URL.
+2. Redeploy both once the URLs are filled in.
+
+Trade-off: on a serverless host the dashboard's live stream is cut every minute
+or so, so the page falls back to refreshing on a timer. Stamps are unaffected.
+
+## 3. The mobile app in Expo Go
+
+This part needs Node.js and a terminal on your computer, once.
 
 ```bash
-# from the repository, in apps/mobile
+cd apps/mobile
 npx eas login          # your expo.dev account
-npx eas init           # creates the project, writes its id into app.json
+npx eas init           # registers the project, writes its id into app.json
 npx eas update --branch preview --message "First preview"
 ```
 
-Then open **Expo Go** on the phone, sign in with the same account, and the
-project appears under *Projects*. It opens from anywhere — no computer, no
-Wi-Fi requirement — because the app talks to the hosted API.
-
-Point the published app at the hosted API by setting it in `apps/mobile/app.json`
-before publishing:
+Before publishing, point the app at the hosted API in `apps/mobile/app.json`:
 
 ```json
-"extra": { "apiUrl": "https://loyaltyapp-api.onrender.com" }
+"extra": { "apiUrl": "https://your-api-address" }
 ```
 
-While developing, that value is ignored: the app uses whichever machine is
-serving the bundle. Only a published preview uses it.
+Then open **Expo Go**, sign in with the same account, and the project is listed
+under *Projects*. It works from anywhere, because the data lives on the server
+rather than on the computer.
 
-Publish again after any change to the app with the same `eas update` command.
+While developing, that address is ignored — the app talks to whichever machine
+serves the bundle. Only a published preview uses it. Publish again after any
+change with the same `eas update` command.
 
-## Without Expo: the phone browser
+## Without Expo at all
 
-The web app is responsive and works on a phone as it is. Once step 1 is done:
+The web app is responsive. Once step 2 is done:
 
-- staff stamping: `https://<your-web-service>/stamp`
-- owner dashboard: `https://<your-web-service>/dashboard`
+- staff stamping: `https://<web address>/stamp`
+- owner dashboard: `https://<web address>/dashboard`
 
-Add either to the home screen and it behaves like an app. This needs no Expo
-account and no terminal — step 2 is for seeing the native app.
+Add either to the phone's home screen and it behaves like an app — no Expo
+account, no terminal. Expo Go is for previewing the native app specifically.
+
+## After the first deploy
+
+- Register the café at `/register`; the seeded demo data is local only.
+- Wallet passes are issued with the API address they were created with, so set
+  the final address **before** handing cards to customers.
+- Wallet credentials go in the host's environment variables, never in the
+  repository. The **Wallet cards** page in the dashboard reports what is
+  missing.

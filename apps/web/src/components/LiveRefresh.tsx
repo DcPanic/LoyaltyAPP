@@ -33,8 +33,14 @@ export function LiveRefresh({ events }: { events?: string[] }) {
     source.onerror = () => setLive(false);
     for (const name of watched) source.addEventListener(name, refresh);
 
+    // Some hosts cut long-lived connections (a serverless function has a time
+    // limit, a sleeping service drops them). A slow poll keeps the page honest
+    // even then; it costs one request a minute when the stream is healthy.
+    const poll = setInterval(() => router.refresh(), 60_000);
+
     return () => {
       if (timer) clearTimeout(timer);
+      clearInterval(poll);
       source.close();
     };
   }, [router, events]);

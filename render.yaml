@@ -1,20 +1,16 @@
-# One-click deployment: Render reads this file and creates everything —
-# the database, the API and the web app — with the right settings.
+# One-click hosting: Render reads this file and creates the API and the web app,
+# already wired to each other.
 #
-# In the Render dashboard: New -> Blueprint -> pick this repository -> Apply.
+#   Render dashboard -> New -> Blueprint -> pick this repository -> Apply
 #
-# The plans below are the free ones, which is enough to try the platform from
-# anywhere. Two things to know about free on Render: a service goes to sleep
-# after 15 minutes without traffic and takes about a minute to wake up, and a
-# free database is removed after 30 days. Change `plan: free` to `plan: starter`
-# (services) and `plan: basic-256mb` (database) when it stops being a test.
-
-databases:
-  - name: loyaltyapp-db
-    databaseName: loyaltyapp
-    user: loyaltyapp
-    region: frankfurt
-    plan: free
+# The database is deliberately NOT created here. Render's free database is
+# deleted after 30 days; a free Neon project (neon.tech) is not. Paste the Neon
+# connection string into DATABASE_URL when Render asks, and nothing you enter
+# ever expires.
+#
+# Free Render services sleep after 15 minutes without traffic and take about a
+# minute to wake. That is fine while you are trying the platform and wrong for a
+# real café — change `plan: free` to `plan: starter` when customers depend on it.
 
 services:
   # ---------------------------------------------------------------- API ----
@@ -30,15 +26,15 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      # Paste your Neon connection string here when Render asks for it.
       - key: DATABASE_URL
-        fromDatabase:
-          name: loyaltyapp-db
-          property: connectionString
-      # Generated once and kept secret: it signs every session and member token.
+        sync: false
+      # Generated once by Render and never shown in the repository: it signs
+      # every staff session and every customer's member token.
       - key: JWT_SECRET
         generateValue: true
-      # The API builds its own public address from RENDER_EXTERNAL_URL, and
-      # learns the web app's address from here.
+      # The API takes its own public address from RENDER_EXTERNAL_URL and learns
+      # the web app's address from here, so no URLs need pasting back in.
       - key: APP_HOST
         fromService:
           type: web
@@ -46,8 +42,8 @@ services:
           property: host
       - key: LOG_LEVEL
         value: info
-      # Wallet credentials are added in the dashboard, never committed.
-      # See docs/WALLET.md for what each one is.
+      # Wallet credentials — leave empty until you have them from Apple and
+      # Google. Everything else works without them (see docs/WALLET.md).
       - key: APPLE_PASS_TYPE_IDENTIFIER
         sync: false
       - key: APPLE_TEAM_IDENTIFIER

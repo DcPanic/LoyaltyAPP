@@ -129,10 +129,13 @@ The tests need a PostgreSQL instance; set `TEST_DATABASE_URL` if it is not
 
 ## Putting it online
 
-`render.yaml` deploys the database, the API and the web app together from a
-browser, with no terminal: Render → **New → Blueprint** → this repository →
-**Apply**. The services discover each other's addresses on their own. Publishing
-the mobile app to Expo Go is a separate, optional step. Both are written up in
+The platform needs a database, the API and the web app running somewhere; the
+phone app and the wallet cards are clients of those. A free setup that does not
+expire is Neon for the database plus Render or Vercel for the two services —
+`render.yaml` and `vercel.json` describe the deployment, so it is a blueprint
+apply rather than a checklist, and the services find each other's addresses on
+their own. Publishing the mobile app to Expo Go is a separate, optional step.
+All of it, with what each option costs, is in
 [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 ## Documentation
