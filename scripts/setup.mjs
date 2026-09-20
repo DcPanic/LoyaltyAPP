@@ -84,6 +84,15 @@ fs.mkdirSync(path.dirname(ENV_PATH), { recursive: true });
 fs.writeFileSync(ENV_PATH, env);
 console.log(`\n✓ Settings written to ${ENV_PATH}`);
 
+// npm 11 does not run a dependency's own install script unless it has been
+// allowlisted, so a clean "npm install" can succeed while leaving the Prisma
+// client an empty stub. Generating it here costs a second and turns a puzzling
+// failure further down into nothing at all. The shared package is compiled for
+// the same reason: the api imports it from dist/.
+console.log('\n→ Preparing the code…');
+run('npm run build -w @loyaltyapp/shared');
+run('npm run db:generate -w @loyaltyapp/api', { DATABASE_URL: databaseUrl });
+
 console.log('\n→ Creating the tables…');
 if (!run('npm run db:deploy -w @loyaltyapp/api', { DATABASE_URL: databaseUrl })) {
   console.error(

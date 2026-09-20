@@ -15,6 +15,8 @@
  * one — then this computer only serves the app's code.
  */
 import { spawn, spawnSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 import process from 'node:process';
 
 const isWindows = process.platform === 'win32';
@@ -170,6 +172,23 @@ async function main() {
     console.log(`✓ API is reachable at ${apiUrl}`);
   } else {
     console.log(`→ Using the hosted API at ${apiUrl}`);
+  }
+
+  // apps/mobile sits outside the npm workspace on purpose (Expo pins its own
+  // dependency versions), so the install at the repository root never reaches
+  // it. Without this, a first run gets all the way here and only then fails.
+  if (!fs.existsSync(path.join('apps', 'mobile', 'node_modules'))) {
+    console.log('\n→ Installing the phone app (first time only, a few minutes)…');
+    const installed = spawnSync('npm install', {
+      cwd: path.join('apps', 'mobile'),
+      shell: true,
+      stdio: 'inherit',
+    });
+    if (installed.status !== 0) {
+      console.error('\nCould not install the phone app. Check the messages above.');
+      stopAll();
+      process.exit(1);
+    }
   }
 
   console.log('\n→ Starting Expo. Scan the QR code below with Expo Go.');
