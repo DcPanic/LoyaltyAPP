@@ -21,6 +21,8 @@
     "db:push": "npm run db:push -w @loyaltyapp/api",
     "db:seed": "npm run db:seed -w @loyaltyapp/api",
     "db:generate": "npm run db:generate -w @loyaltyapp/api",
-    "demo:sync": "cp apps/web/src/app/globals.css docs/demo/app.css"
+    "demo:sync": "cp apps/web/src/app/globals.css docs/demo/app.css",
+    "preview": "node scripts/preview.mjs",
+    "setup": "node scripts/setup.mjs"
   }
 }

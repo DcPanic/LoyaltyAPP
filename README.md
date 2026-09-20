@@ -58,31 +58,50 @@ docs/         Architecture, wallet setup, NFC, security and roadmap
 
 ## Getting started
 
-Requirements: Node 20+, PostgreSQL 16 (or `docker compose up -d db`).
+Requirements: Node 20+ and a PostgreSQL database. The database can be a free
+cloud one (<https://neon.tech>) — nothing has to be installed for it.
 
 ```bash
-# 1. install
 npm install
+npm run setup        # asks for the database address, prepares everything
+```
 
-# 2. database
-docker compose up -d db          # or use your own PostgreSQL
+Then either see it on a phone, from anywhere:
+
+```bash
+npm run preview      # Expo Go QR code, tunnelled — no shared Wi-Fi needed
+```
+
+or run it on this computer:
+
+```bash
+npm run dev:api      # http://localhost:4000
+npm run dev:web      # http://localhost:3000
+```
+
+<details>
+<summary>Doing it by hand instead</summary>
+
+```bash
+docker compose up -d db          # or your own PostgreSQL
 cp apps/api/.env.example apps/api/.env
 #    set DATABASE_URL and a long random JWT_SECRET
 npm run db:migrate -w @loyaltyapp/api
 npm run db:seed -w @loyaltyapp/api
-
-# 3. run the backend and the web app
-npm run dev:api                  # http://localhost:4000
-npm run dev:web                  # http://localhost:3000
-
-# 4. run the mobile app (separate install, not part of the npm workspace)
-cd apps/mobile && npm install && npx expo start
 ```
 
-Scan the QR code with **Expo Go** (Expo SDK 57). The app finds the API by
-itself from the address Expo serves the bundle on, so a phone on the same Wi-Fi
-needs no configuration — see [`apps/mobile/README.md`](apps/mobile/README.md),
-including what to do when Windows Firewall blocks it.
+</details>
+
+### The phone app
+
+`npm run preview` starts the API, puts it on a public address and opens Expo
+with a tunnelled QR code, so a phone on mobile data in another town can scan it.
+Scanning needs **Expo Go** (Expo SDK 57).
+
+For a phone on the same Wi-Fi, `cd apps/mobile && npm install && npx expo start`
+is enough — the app finds the API by itself. See
+[`apps/mobile/README.md`](apps/mobile/README.md), including what to do when
+Windows Firewall blocks it.
 
 The seed creates a demo café:
 

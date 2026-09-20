@@ -89,3 +89,25 @@ refuses those requests regardless of what the app shows.
 npm run typecheck
 npx expo export --platform android   # proves the app bundles
 ```
+
+## Seeing it on a phone that is not on your Wi-Fi
+
+From the repository root:
+
+```bash
+npm run preview
+```
+
+This starts the API, puts it on a public address and opens Expo with a
+tunnelled QR code. Scan it with Expo Go from anywhere — mobile data, another
+building, another country. Your computer stays the server, so it has to remain
+on and awake.
+
+If the API is already hosted somewhere, skip the local one:
+
+```bash
+npm run preview -- --api https://your-api-address
+```
+
+To stop needing the computer at all, publish the app to your Expo account and
+host the API — both are in [`../../docs/DEPLOY.md`](../../docs/DEPLOY.md).

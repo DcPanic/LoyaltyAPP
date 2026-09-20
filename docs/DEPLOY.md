@@ -1,5 +1,11 @@
 # Putting it online
 
+> **Just want to see it on your phone from anywhere?** You do not need any of
+> this. `npm run preview` on your own computer opens a tunnelled Expo Go QR
+> code that works on mobile data, anywhere. The catch is that your computer has
+> to stay on, because it is serving both the app and the data. Everything below
+> is for when it should keep working with the computer switched off.
+
 The platform needs three pieces running somewhere: a **database**, the **API**
 and the **web app**. The phone app and the customer's wallet card are clients of
 those — they hold no data of their own, which is exactly why a barista, a
