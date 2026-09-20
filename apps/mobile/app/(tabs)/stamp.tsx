@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -157,6 +158,49 @@ export default function StampScreen() {
     }
   }
 
+  /**
+   * Fixing a reward that was handed over by mistake. The counter tag redeems a
+   * full card on its own, so whoever is standing there needs to be able to put
+   * it back without calling the owner.
+   */
+  function undoRedeem() {
+    if (!card) return;
+    const name = card.customer.firstName;
+    Alert.alert(
+      'Put the reward back?',
+      `${name}'s card fills up again and the reward can be used later. The correction is recorded.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Put it back',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              setPending(true);
+              setMessage(null);
+              try {
+                await api('/v1/stamping/undo-redeem', {
+                  method: 'POST',
+                  body: { membershipId: card.membership.id },
+                });
+                await openCard(card.membership.id);
+                await loadRecent();
+                setMessage({ tone: 'success', text: `Reward put back for ${name}` });
+              } catch (err) {
+                setMessage({
+                  tone: 'error',
+                  text: err instanceof ApiError ? err.message : 'Could not put the reward back',
+                });
+              } finally {
+                setPending(false);
+              }
+            })();
+          },
+        },
+      ],
+    );
+  }
+
   return (
     <ScrollView
       style={styles.screen}
@@ -296,6 +340,14 @@ export default function StampScreen() {
               />
             </View>
           </View>
+
+          {can('reward:redeem') && card.membership.rewardsRedeemed > 0 && (
+            <Pressable onPress={undoRedeem} disabled={pending} style={{ paddingVertical: 8 }}>
+              <Text style={[styles.muted, { textAlign: 'center', textDecorationLine: 'underline' }]}>
+                Given by mistake? Put the last reward back
+              </Text>
+            </Pressable>
+          )}
         </Card>
       )}
 

@@ -152,6 +152,17 @@ describe('API', () => {
       .get('/v1/stamping/search?q=Maria')
       .set('authorization', `Bearer ${staffToken}`);
     expect(search.status).toBe(200);
+
+    // Handing a reward over, and putting one back that was given by mistake,
+    // are counter work: the tag redeems on its own, so the person standing
+    // there has to be able to settle it. Neither route may answer "forbidden".
+    for (const path of ['/v1/stamping/redeem', '/v1/stamping/undo-redeem']) {
+      const res = await request(app)
+        .post(path)
+        .set('authorization', `Bearer ${staffToken}`)
+        .send({ membershipId: 'no-such-membership' });
+      expect(res.status).not.toBe(403);
+    }
   });
 
   it('stamps through an NFC tag and rejects a disabled tag', async () => {
@@ -183,6 +194,39 @@ describe('API', () => {
 
     const afterDisable = await request(app).post(`/v1/public/tap/${code}`).send({ memberToken });
     expect(afterDisable.status).toBe(403);
+  });
+
+  it('settles a full card at the tag instead of adding a stamp', async () => {
+    const tag = await request(app)
+      .post('/v1/nfc')
+      .set('authorization', `Bearer ${cafeA.accessToken}`)
+      .send({ label: 'Full card tag' });
+    const code = tag.body.code as string;
+
+    const join = await request(app)
+      .post(`/v1/public/join/${cafeA.business.slug}`)
+      .send({ firstName: 'Eleni', phone: '+35799555111', termsAccepted: true, marketingConsent: false });
+    const memberToken = join.body.memberToken as string;
+
+    const found = await request(app)
+      .get('/v1/stamping/search?q=Eleni')
+      .set('authorization', `Bearer ${cafeA.accessToken}`);
+    const membershipId = found.body.items[0].membershipId as string;
+
+    const filled = await request(app)
+      .post('/v1/stamping/stamp')
+      .set('authorization', `Bearer ${cafeA.accessToken}`)
+      .set('idempotency-key', 'api-fill-the-card')
+      .send({ membershipId, amount: 10 });
+    expect(filled.status).toBe(200);
+    expect(filled.body.membership.rewardAvailable).toBe(true);
+
+    const tap = await request(app).post(`/v1/public/tap/${code}`).send({ memberToken });
+    expect(tap.status).toBe(200);
+    expect(tap.body.redeemed).toBe(true);
+    expect(tap.body.stampsAdded).toBe(0);
+    expect(tap.body.membership.stamps).toBe(0);
+    expect(tap.body.membership.rewardAvailable).toBe(false);
   });
 
   it('refuses a member token from another café on a tag', async () => {

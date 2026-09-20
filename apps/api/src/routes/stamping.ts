@@ -14,6 +14,7 @@ import {
   redeemReward,
   removeStamps,
   summarise,
+  undoRedemption,
 } from '../services/loyalty.js';
 
 export const stampingRouter: Router = Router();
@@ -204,6 +205,38 @@ stampingRouter.post(
         actorLabel: ctx.name,
         idempotencyKey: idempotencyKey(req),
         note: input.note,
+        ip: clientIp(req),
+      }),
+    );
+  }),
+);
+
+const undoRedeemSchema = z.object({
+  membershipId: z.string().min(1),
+  reason: z.string().trim().max(200).optional(),
+});
+
+/**
+ * Puts back a reward given out by mistake, filling the card again.
+ *
+ * Whoever may hand a reward over may also take it back, because the counter tag
+ * redeems by itself and the person standing there is the one who has to fix it.
+ * The correction is recorded like any other change.
+ */
+stampingRouter.post(
+  '/undo-redeem',
+  stampLimiter,
+  requirePermission('reward:redeem'),
+  asyncHandler(async (req, res) => {
+    const ctx = auth(req);
+    const input = parseBody(undoRedeemSchema, req);
+    res.json(
+      await undoRedemption({
+        businessId: ctx.businessId,
+        membershipId: input.membershipId,
+        staffUserId: ctx.userId,
+        actorLabel: ctx.name,
+        reason: input.reason ?? null,
         ip: clientIp(req),
       }),
     );

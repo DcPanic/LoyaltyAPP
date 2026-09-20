@@ -9,7 +9,7 @@ import { sha256 } from '../lib/crypto.js';
 import { signMemberToken, verifyMemberToken } from '../lib/tokens.js';
 import { publicLimiter } from '../middleware/rateLimit.js';
 import { activeProgram, joinLoyaltyProgram } from '../services/customers.js';
-import { addStamps, loadMembership, summarise } from '../services/loyalty.js';
+import { loadMembership, summarise, tapStampOrRedeem } from '../services/loyalty.js';
 import { ensurePass, walletAvailability } from '../wallet/index.js';
 
 export const publicRouter: Router = Router();
@@ -215,7 +215,7 @@ publicRouter.post(
     const key =
       input.requestId ?? sha256(`${device.id}:${membership.id}:${bucket}`).slice(0, 48);
 
-    const result = await addStamps({
+    const result = await tapStampOrRedeem({
       businessId: device.businessId,
       membershipId: membership.id,
       amount: 1,
@@ -255,7 +255,7 @@ publicRouter.post(
     const membership = await loadMembership(device.businessId, claims.mem);
 
     const bucket = Math.floor(Date.now() / 30_000);
-    const result = await addStamps({
+    const result = await tapStampOrRedeem({
       businessId: device.businessId,
       membershipId: membership.id,
       amount: 1,

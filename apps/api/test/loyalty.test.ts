@@ -1,6 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { prisma } from '../src/lib/prisma.js';
-import { addStamps, adjustStamps, redeemReward, removeStamps } from '../src/services/loyalty.js';
+import {
+  addStamps,
+  adjustStamps,
+  redeemReward,
+  removeStamps,
+  tapStampOrRedeem,
+  undoRedemption,
+} from '../src/services/loyalty.js';
 import { createBusiness, createMember, createOwner } from './factories.js';
 
 describe('stamp engine', () => {
@@ -226,6 +233,143 @@ describe('stamp engine', () => {
       where: { businessId, action: 'stamp.adjust', targetId: membership.id },
     });
     expect(audit).not.toBeNull();
+  });
+
+  it('hands over the reward when a full card is tapped, instead of stamping', async () => {
+    const { membership } = await createMember(businessId, programId);
+    await addStamps({
+      businessId,
+      membershipId: membership.id,
+      amount: 10,
+      channel: 'STAFF_APP',
+      staffUserId: ownerId,
+      actorLabel: 'Owner',
+      idempotencyKey: 'tap-redeem-setup',
+    });
+
+    const tap = await tapStampOrRedeem({
+      businessId,
+      membershipId: membership.id,
+      amount: 1,
+      channel: 'NFC',
+      actorLabel: 'NFC tag Counter',
+      idempotencyKey: 'tap-redeem-full',
+    });
+
+    expect(tap.redeemed).toBe(true);
+    expect(tap.stampsAdded).toBe(0);
+    expect(tap.membership.stamps).toBe(0);
+    expect(tap.membership.rewardAvailable).toBe(false);
+    expect(tap.membership.rewardsRedeemed).toBe(1);
+  });
+
+  it('does not hand over two rewards when the same tap arrives twice', async () => {
+    const { membership } = await createMember(businessId, programId);
+    for (const key of ['twice-a', 'twice-b']) {
+      await addStamps({
+        businessId,
+        membershipId: membership.id,
+        amount: 10,
+        channel: 'STAFF_APP',
+        staffUserId: ownerId,
+        actorLabel: 'Owner',
+        idempotencyKey: key,
+      });
+    }
+
+    const command = {
+      businessId,
+      membershipId: membership.id,
+      amount: 1,
+      channel: 'NFC' as const,
+      actorLabel: 'NFC tag Counter',
+      idempotencyKey: 'tap-redeem-replay',
+    };
+    const first = await tapStampOrRedeem(command);
+    const second = await tapStampOrRedeem(command);
+
+    expect(first.redeemed).toBe(true);
+    expect(second.duplicate).toBe(true);
+    expect(second.redeemed).toBe(true);
+    // Two cards' worth were collected, so exactly one card remains standing.
+    expect(second.membership.stamps).toBe(first.membership.stamps);
+    expect(second.membership.rewardsRedeemed).toBe(1);
+  });
+
+  it('still stamps a tap when the card is not full', async () => {
+    const { membership } = await createMember(businessId, programId);
+    const tap = await tapStampOrRedeem({
+      businessId,
+      membershipId: membership.id,
+      amount: 1,
+      channel: 'NFC',
+      actorLabel: 'NFC tag Counter',
+      idempotencyKey: 'tap-not-full',
+    });
+
+    expect(tap.redeemed).toBe(false);
+    expect(tap.stampsAdded).toBe(1);
+    expect(tap.membership.stamps).toBe(1);
+  });
+
+  it('puts a reward back that was handed over by mistake', async () => {
+    const { membership } = await createMember(businessId, programId);
+    await addStamps({
+      businessId,
+      membershipId: membership.id,
+      amount: 10,
+      channel: 'STAFF_APP',
+      staffUserId: ownerId,
+      actorLabel: 'Owner',
+      idempotencyKey: 'undo-setup',
+    });
+    await tapStampOrRedeem({
+      businessId,
+      membershipId: membership.id,
+      amount: 1,
+      channel: 'NFC',
+      actorLabel: 'NFC tag Counter',
+      idempotencyKey: 'undo-tap',
+    });
+
+    const restored = await undoRedemption({
+      businessId,
+      membershipId: membership.id,
+      staffUserId: ownerId,
+      actorLabel: 'Barista',
+      reason: 'Tapped by accident',
+    });
+
+    expect(restored.stamps).toBe(10);
+    expect(restored.rewardAvailable).toBe(true);
+    expect(restored.rewardsRedeemed).toBe(0);
+
+    // The entitlement is genuinely open again, not just the balance.
+    const again = await redeemReward({
+      businessId,
+      membershipId: membership.id,
+      staffUserId: ownerId,
+      actorLabel: 'Owner',
+      idempotencyKey: 'undo-then-redeem',
+    });
+    expect(again.membership.stamps).toBe(0);
+
+    const audit = await prisma.auditLog.findFirst({
+      where: { businessId, action: 'reward.undo', targetId: membership.id },
+    });
+    expect(audit).not.toBeNull();
+  });
+
+  it('refuses to put a reward back for a customer who never had one', async () => {
+    const { membership } = await createMember(businessId, programId);
+    await expect(
+      undoRedemption({
+        businessId,
+        membershipId: membership.id,
+        staffUserId: ownerId,
+        actorLabel: 'Barista',
+      }),
+    ).rejects.toThrow(/no reward to put back/i);
   });
 
   it('refuses to stamp a membership from another business', async () => {

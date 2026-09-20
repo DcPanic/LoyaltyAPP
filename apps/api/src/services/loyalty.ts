@@ -1,5 +1,10 @@
 import { Prisma, type LoyaltyMembership, type LoyaltyProgram } from '@prisma/client';
-import { classifySegment, type MembershipSummary, type StampResult } from '@loyaltyapp/shared';
+import {
+  classifySegment,
+  type MembershipSummary,
+  type StampResult,
+  type TapResult,
+} from '@loyaltyapp/shared';
 import { prisma } from '../lib/prisma.js';
 import { badRequest, conflict, notFound, tooManyRequests } from '../lib/errors.js';
 import { bus } from '../lib/events.js';
@@ -30,9 +35,12 @@ export interface RedeemCommand {
   membershipId: string;
   rewardId?: string | null;
   locationId?: string | null;
+  nfcDeviceId?: string | null;
   staffUserId?: string | null;
   actorLabel: string;
   idempotencyKey: string;
+  /** Where the redemption came from. A counter tap records itself as NFC. */
+  channel?: Channel;
   note?: string | null;
   ip?: string | null;
 }
@@ -351,21 +359,39 @@ export async function removeStamps(cmd: StampCommand): Promise<StampResult> {
   };
 }
 
+/** The oldest reward this membership has earned and not yet been given. */
+export function pendingRedemption(membershipId: string) {
+  return prisma.rewardRedemption.findFirst({
+    where: {
+      membershipId,
+      redeemedAt: null,
+      OR: [{ expiresAt: null }, { expiresAt: { gte: new Date() } }],
+    },
+    orderBy: { earnedAt: 'asc' },
+  });
+}
+
 export async function redeemReward(cmd: RedeemCommand) {
+  // A redemption is idempotent for the same reason a stamp is: a tap that
+  // arrives twice, or a barista pressing the button twice, must hand over one
+  // reward. The reply is the original one.
+  const replay = await existingTransaction(cmd.businessId, cmd.idempotencyKey);
+  if (replay) {
+    return {
+      membership: await summarise(replay.membership),
+      transactionId: replay.id,
+      redemptionId: null as string | null,
+      duplicate: true,
+    };
+  }
+
   const membership = await loadMembership(cmd.businessId, cmd.membershipId);
   const required = membership.program.stampsRequired;
   if (membership.stamps < required) {
     throw badRequest(`This customer has ${membership.stamps} of ${required} stamps`);
   }
 
-  const pending = await prisma.rewardRedemption.findFirst({
-    where: {
-      membershipId: membership.id,
-      redeemedAt: null,
-      OR: [{ expiresAt: null }, { expiresAt: { gte: new Date() } }],
-    },
-    orderBy: { earnedAt: 'asc' },
-  });
+  const pending = await pendingRedemption(membership.id);
   if (!pending) throw conflict('This reward has expired or was already redeemed');
 
   const result = await prisma.$transaction(async (tx) => {
@@ -389,22 +415,23 @@ export async function redeemReward(cmd: RedeemCommand) {
         note: cmd.note ?? null,
       },
     });
-    await tx.transaction.create({
+    const transaction = await tx.transaction.create({
       data: {
         businessId: cmd.businessId,
         customerId: membership.customerId,
         membershipId: membership.id,
         locationId: cmd.locationId ?? null,
+        nfcDeviceId: cmd.nfcDeviceId ?? null,
         staffUserId: cmd.staffUserId ?? null,
         type: 'REWARD_REDEEMED',
-        channel: 'STAFF_APP',
+        channel: cmd.channel ?? 'STAFF_APP',
         amount: required,
         balanceAfter: updated.stamps,
         note: cmd.note ?? null,
         idempotencyKey: cmd.idempotencyKey,
       },
     });
-    return { updated, redemption };
+    return { updated, redemption, transaction };
   });
 
   bus.publish({
@@ -425,7 +452,148 @@ export async function redeemReward(cmd: RedeemCommand) {
   });
   void refreshPasses(membership.id);
 
-  return { membership: await summarise(result.updated), redemptionId: result.redemption.id };
+  return {
+    membership: await summarise(result.updated),
+    transactionId: result.transaction.id,
+    redemptionId: result.redemption.id as string | null,
+    duplicate: false,
+  };
+}
+
+/**
+ * What a tap on the counter tag does.
+ *
+ * Normally it adds a stamp. When the card is already full and a reward is
+ * waiting, the tap hands that reward over instead: the balance drops by one
+ * card's worth and the customer starts collecting again. The café asked for
+ * this so a full card can be settled without the barista touching anything,
+ * which matters most for phone and delivery orders.
+ *
+ * Both paths share the caller's idempotency key, so a double tap is one action
+ * either way, and a tap can never both stamp and redeem.
+ */
+export async function tapStampOrRedeem(cmd: StampCommand): Promise<TapResult> {
+  const replay = await existingTransaction(cmd.businessId, cmd.idempotencyKey);
+  if (replay) {
+    const redeemed = replay.type === 'REWARD_REDEEMED';
+    return {
+      membership: await summarise(replay.membership),
+      transactionId: replay.id,
+      stampsAdded: redeemed ? 0 : replay.amount,
+      rewardUnlocked: false,
+      duplicate: true,
+      redeemed,
+      rewardName: replay.membership.program.rewardName,
+    };
+  }
+
+  const membership = await loadMembership(cmd.businessId, cmd.membershipId);
+  const full = membership.stamps >= membership.program.stampsRequired;
+
+  // An expired or already-used entitlement means there is nothing to hand over,
+  // so the tap falls back to being an ordinary stamp rather than an error.
+  if (full && (await pendingRedemption(membership.id))) {
+    const result = await redeemReward({
+      businessId: cmd.businessId,
+      membershipId: cmd.membershipId,
+      locationId: cmd.locationId ?? null,
+      nfcDeviceId: cmd.nfcDeviceId ?? null,
+      actorLabel: cmd.actorLabel,
+      idempotencyKey: cmd.idempotencyKey,
+      channel: cmd.channel,
+      ip: cmd.ip,
+    });
+    return {
+      membership: result.membership,
+      transactionId: result.transactionId,
+      stampsAdded: 0,
+      rewardUnlocked: false,
+      duplicate: result.duplicate,
+      redeemed: true,
+      rewardName: membership.program.rewardName,
+    };
+  }
+
+  const result = await addStamps(cmd);
+  return { ...result, redeemed: false, rewardName: membership.program.rewardName };
+}
+
+/**
+ * Puts back a reward that was handed over by mistake.
+ *
+ * The counter tag redeems on its own, so a customer who only wanted a stamp can
+ * spend a full card by accident. This is the exact inverse: the stamps come
+ * back, the entitlement is open again, and both the original redemption and the
+ * correction stay in the history. It is never a silent edit.
+ */
+export async function undoRedemption(params: {
+  businessId: string;
+  membershipId: string;
+  staffUserId: string;
+  actorLabel: string;
+  reason?: string | null;
+  ip?: string | null;
+}) {
+  const membership = await loadMembership(params.businessId, params.membershipId);
+
+  const last = await prisma.rewardRedemption.findFirst({
+    where: { businessId: params.businessId, membershipId: membership.id, redeemedAt: { not: null } },
+    orderBy: { redeemedAt: 'desc' },
+  });
+  if (!last) throw badRequest('This customer has no reward to put back');
+
+  const restored = last.stampsSpent || membership.program.stampsRequired;
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const m = await tx.loyaltyMembership.update({
+      where: { id: membership.id },
+      data: {
+        stamps: { increment: restored },
+        rewardsRedeemed: { decrement: 1 },
+        lastActivityAt: new Date(),
+      },
+      include: { program: true },
+    });
+    await tx.rewardRedemption.update({
+      where: { id: last.id },
+      data: { redeemedAt: null, stampsSpent: 0, note: params.reason ?? null },
+    });
+    await tx.transaction.create({
+      data: {
+        businessId: params.businessId,
+        customerId: membership.customerId,
+        membershipId: membership.id,
+        staffUserId: params.staffUserId,
+        type: 'ADJUSTMENT',
+        channel: 'STAFF_APP',
+        amount: restored,
+        balanceAfter: m.stamps,
+        note: params.reason ?? 'Reward put back',
+      },
+    });
+    return m;
+  });
+
+  void recordAudit({
+    businessId: params.businessId,
+    actorUserId: params.staffUserId,
+    actorLabel: params.actorLabel,
+    action: 'reward.undo',
+    targetType: 'membership',
+    targetId: membership.id,
+    metadata: { redemptionId: last.id, stampsRestored: restored },
+    ip: params.ip,
+  });
+  void refreshPasses(membership.id);
+  bus.publish({
+    type: 'stamp.added',
+    businessId: params.businessId,
+    membershipId: membership.id,
+    customerId: membership.customerId,
+    stamps: updated.stamps,
+  });
+
+  return summarise(updated);
 }
 
 /** Owner-only manual correction, always attributed and audited. */

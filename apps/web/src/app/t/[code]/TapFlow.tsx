@@ -12,8 +12,10 @@ interface StampResponse {
   result?: {
     duplicate: boolean;
     rewardUnlocked: boolean;
+    /** True when the card was full and this tap handed the reward over. */
+    redeemed?: boolean;
     customerFirstName?: string;
-    rewardName?: string;
+    rewardName?: string | null;
     membership: { stamps: number; stampsRequired: number; rewardAvailable: boolean };
   };
 }
@@ -64,7 +66,7 @@ export function TapFlow({
         <div className="tap-check" aria-hidden>
           ☕
         </div>
-        <p>Adding your stamp…</p>
+        <p>One moment…</p>
       </div>
     );
   }
@@ -104,6 +106,28 @@ export function TapFlow({
 
   const membership = data.result!.membership;
   const remaining = Math.max(0, membership.stampsRequired - membership.stamps);
+  const reward = data.result!.rewardName ?? rewardName;
+
+  // The card was full, so this tap spent it instead of adding to it. Say so
+  // plainly: the customer needs to know the coffee is theirs to collect and
+  // that the card they are looking at has started again.
+  if (data.result!.redeemed) {
+    return (
+      <div className="tap-result">
+        <div className="tap-check" aria-hidden>
+          🎁
+        </div>
+        <h2>{data.result!.duplicate ? 'Already collected' : `${reward} is yours`}</h2>
+        <p className="hint">Ask the barista for it — your card starts again from here.</p>
+        <p className="tap-count">
+          {membership.stamps} / {membership.stampsRequired}
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'center', margin: '1rem 0' }}>
+          <StampGrid stamps={membership.stamps} required={membership.stampsRequired} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="tap-result">
@@ -119,13 +143,12 @@ export function TapFlow({
       </div>
       {membership.rewardAvailable ? (
         <p>
-          🎁 <strong>{data.result!.rewardName ?? rewardName} is ready!</strong> Show your card to
-          the barista.
+          🎁 <strong>{reward} is ready!</strong> Tap again to collect it, or show your card to the
+          barista.
         </p>
       ) : (
         <p className="hint">
-          {remaining} more {remaining === 1 ? 'stamp' : 'stamps'} until{' '}
-          {data.result!.rewardName ?? rewardName}.
+          {remaining} more {remaining === 1 ? 'stamp' : 'stamps'} until {reward}.
         </p>
       )}
     </div>

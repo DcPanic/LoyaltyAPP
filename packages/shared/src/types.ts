@@ -50,6 +50,16 @@ export interface StampResult {
   duplicate: boolean;
 }
 
+/**
+ * A self-service tap does one of two things: adds a stamp, or — when the card is
+ * already full — hands over the reward and starts the card again. `redeemed`
+ * says which happened, so the page the customer is looking at can say so.
+ */
+export interface TapResult extends StampResult {
+  redeemed: boolean;
+  rewardName: string | null;
+}
+
 export interface Paginated<T> {
   items: T[];
   nextCursor: string | null;

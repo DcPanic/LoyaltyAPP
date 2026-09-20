@@ -44,8 +44,10 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'nfc:manage',
     'audit:read',
   ],
-  // Default staff role is "stamp only".
-  STAFF: ['stamp:add', 'customer:read'],
+  // Staff serve the counter: find the customer, add stamps, and hand over a
+  // reward that has been earned. They see no takings, no settings and no other
+  // staff. A membership may narrow or widen this per person.
+  STAFF: ['stamp:add', 'customer:read', 'reward:redeem'],
 };
 
 export function permissionsForRole(role: Role): Permission[] {
