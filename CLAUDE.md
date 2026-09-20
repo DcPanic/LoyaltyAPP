@@ -62,12 +62,51 @@ cd apps/mobile && npx tsc --noEmit    # mobile
   passwords live in environment variables; `.env` files are ignored by git.
 - Keep the tests green: `npm test` before saying something is done.
 
-## Before pushing
+## How we work
 
-This repository is also worked on from a cloud session, so pull first:
+Branch: `claude/intelligent-edison-xuhnwr` unless told otherwise.
+
+**Pull before you start.** The repository is also worked on from a cloud
+session:
 
 ```bash
 git pull --rebase origin claude/intelligent-edison-xuhnwr
 ```
 
-Work on the branch `claude/intelligent-edison-xuhnwr` unless told otherwise.
+**Commit and push after every change that works.** The owner asked for this
+explicitly: nothing should live only on their laptop. A change is finished when
+it is pushed, not when it runs locally.
+
+```bash
+git add -A && git commit -m "..." && git push origin claude/intelligent-edison-xuhnwr
+```
+
+Do not wait to be asked, and do not batch a day's work into one commit. One
+commit per coherent change, with a message that says what changed and why.
+Never commit a `.env` file, a certificate or a database password — they are
+ignored by git and must stay that way.
+
+## Where the project stands
+
+Working end to end, with tests: multi-tenancy, owner and staff accounts with
+server-side permissions, loyalty programs, the stamp engine (staff, NFC tap, QR
+fallback, phone and delivery orders), rewards and redemption, customer CRM with
+segments, campaigns, analytics, NFC tag management, audit log, GDPR export and
+erasure, the Apple Wallet pass writer and web service, the Google Wallet client,
+the responsive web app and the Expo app.
+
+Deliberately not done yet:
+
+- **Apple and Google credentials.** The code is complete and tested against a
+  throwaway certificate (`npm run wallet:dev-certs -w @loyaltyapp/api -- --write`),
+  but real passes need an Apple Developer account and a Google Wallet issuer.
+  The **Wallet cards** page in the dashboard reports what is missing.
+- **Email and SMS.** Campaign audiences resolve correctly; no provider is
+  connected, and the Notifications page says so rather than pretending.
+- **Stripe.** The subscription model exists; checkout is a stub.
+- **Redis.** Live updates use an in-process bus, fine for one API instance.
+
+Immediate goal: the owner wants to use the app on their phone through Expo Go,
+from anywhere, with `npm run setup` once and `npm run preview` after that.
+Hosting it so their laptop can be switched off is the step after
+(`docs/DEPLOY.md`).
