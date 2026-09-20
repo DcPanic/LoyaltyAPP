@@ -14,7 +14,8 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:push": "prisma db push",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "wallet:dev-certs": "tsx scripts/dev-wallet-certs.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

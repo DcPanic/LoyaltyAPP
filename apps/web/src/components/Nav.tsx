@@ -25,6 +25,7 @@ export const NAV: NavItem[] = [
   { href: '/locations', label: 'Locations', icon: '📍', permission: 'location:manage' },
   { href: '/nfc', label: 'NFC tags', icon: '📶', permission: 'nfc:manage' },
   { href: '/audit', label: 'Activity log', icon: '🗒', permission: 'audit:read' },
+  { href: '/wallet', label: 'Wallet cards', icon: '💳', permission: 'settings:manage' },
   { href: '/settings', label: 'Settings', icon: '⚙', permission: 'settings:manage' },
   { href: '/billing', label: 'Billing', icon: '💳', permission: 'billing:manage' },
 ];

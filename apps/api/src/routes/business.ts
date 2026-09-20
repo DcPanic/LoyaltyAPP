@@ -5,6 +5,7 @@ import { asyncHandler, clientIp, parseBody } from '../lib/http.js';
 import { notFound } from '../lib/errors.js';
 import { auth, requirePermission } from '../middleware/auth.js';
 import { recordAudit } from '../services/audit.js';
+import { walletSetupStatus } from '../services/walletSetup.js';
 import { env } from '../config/env.js';
 
 export const businessRouter: Router = Router();
@@ -46,6 +47,16 @@ businessRouter.patch(
       ip: clientIp(req),
     });
     res.json(business);
+  }),
+);
+
+/** What is needed before customers can add the card to their phone's wallet. */
+businessRouter.get(
+  '/wallet',
+  requirePermission('settings:manage'),
+  asyncHandler(async (req, res) => {
+    const ctx = auth(req);
+    res.json(await walletSetupStatus(ctx.businessId));
   }),
 );
 

@@ -102,8 +102,34 @@ GOOGLE_WALLET_SA_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n…"
 pass; it updates the one that exists. Deleting a customer (GDPR erasure)
 revokes the Apple registrations and expires the Google object.
 
-## Testing without credentials
+## Where to check what is missing
 
-`GET /v1/wallet/availability` reports what is configured. The join page hides
-the buttons it cannot honour and always offers the web card, so you can develop
-and demo the entire loyalty flow before Apple and Google approvals land.
+**Wallet cards** in the dashboard lists every credential, says which ones are
+set, warns when a pass certificate is self-signed, and shows the pass web
+service address your passes were issued with. `GET /v1/wallet/availability`
+answers the same question for scripts.
+
+## Trying Apple Wallet before you have Apple credentials
+
+```bash
+npm run wallet:dev-certs -w @loyaltyapp/api -- --write   # then restart the API
+```
+
+This writes a throwaway certificate chain to `apps/api/.env`. The whole flow
+then runs on your machine: the "Add to Apple Wallet" button appears, the
+`.pkpass` is built, signed and served, the pass web service authenticates, and
+every stamp updates the pass.
+
+**A real iPhone will refuse to install these passes** — the signature is not
+Apple's. Use it to develop and demo; replace the values with the real
+certificates before customers touch it. The dashboard shows a red warning for
+as long as a self-signed certificate is in use.
+
+## Before wallet credentials exist
+
+Nothing blocks the loyalty program. The customer's card lives at
+`/m/<memberCode>`: stamps, the QR the barista scans, and an *Add to Home
+Screen* prompt so it sits on their phone like an app, with the café's own icon
+and colours (each card serves its own web app manifest). When you later switch
+Apple or Google on, the same card gains the wallet buttons — nobody has to
+re-join.

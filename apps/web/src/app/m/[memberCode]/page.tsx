@@ -1,3 +1,4 @@
+import type { Metadata, Viewport } from 'next';
 import { notFound } from 'next/navigation';
 import { api, ApiError } from '@/lib/api';
 import { BrandHeader, type Branding } from '@/components/Brand';
@@ -6,6 +7,7 @@ import { QrCode } from '@/components/QrCode';
 import { WalletButtons } from '@/components/WalletButtons';
 import { RememberMe } from './RememberMe';
 import { ConsentToggle } from './ConsentToggle';
+import { AddToHomeScreen } from './AddToHomeScreen';
 
 interface MemberData {
   business: Branding;
@@ -28,7 +30,50 @@ interface MemberData {
   wallet: { apple: string | null; google: string | null };
 }
 
-export const metadata = { title: 'My loyalty card' };
+/** Next keeps the theme colour in the viewport export, not in metadata. */
+export async function generateViewport({
+  params,
+}: {
+  params: Promise<{ memberCode: string }>;
+}): Promise<Viewport> {
+  const { memberCode } = await params;
+  try {
+    const data = await api<MemberData>(`/v1/public/member/${memberCode}`, { auth: false });
+    return { themeColor: data.business.primaryColor };
+  } catch {
+    return {};
+  }
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ memberCode: string }>;
+}): Promise<Metadata> {
+  const { memberCode } = await params;
+  try {
+    const data = await api<MemberData>(`/v1/public/member/${memberCode}`, { auth: false });
+    return {
+      title: `${data.business.name} — my loyalty card`,
+      description: `${data.membership.stamps} of ${data.membership.stampsRequired} stamps towards ${data.program.rewardName}.`,
+      // Lets the customer keep the card on their home screen, with the café's
+      // own icon, whether or not wallet passes are switched on.
+      manifest: `/m/${memberCode}/manifest`,
+      appleWebApp: {
+        capable: true,
+        title: data.business.name,
+        statusBarStyle: 'default',
+      },
+      icons: {
+        icon: `/m/${memberCode}/icon`,
+        apple: data.business.logoUrl ?? `/m/${memberCode}/icon`,
+      },
+      robots: { index: false, follow: false },
+    };
+  } catch {
+    return { title: 'My loyalty card' };
+  }
+}
 
 export default async function MemberPage({
   params,
@@ -94,6 +139,8 @@ export default async function MemberPage({
             available={{ apple: Boolean(data.wallet.apple), google: Boolean(data.wallet.google) }}
           />
         </div>
+
+        <AddToHomeScreen businessName={data.business.name} />
 
         <div className="card">
           <ConsentToggle memberCode={data.memberCode} memberToken={data.memberToken} />

@@ -31,6 +31,8 @@ Web app (Next.js) ─┘             │
 | Apple Wallet passes: build, sign, web service, APNs updates | ✅ |
 | Google Wallet: classes, objects, save links, updates | ✅ |
 | One persistent pass per customer per café | ✅ |
+| Wallet setup status page + dev certificates for local testing | ✅ |
+| Home-screen card fallback while wallet credentials are pending | ✅ |
 | NFC tap stamping + QR fallback, no customer app | ✅ |
 | Staff stamping: scan, search, phone and delivery orders | ✅ |
 | Staff accounts, invitations, role permissions | ✅ |
@@ -93,10 +95,22 @@ Then:
 ## Wallet credentials
 
 Apple Wallet and Google Wallet are switched on by configuration. Without
-credentials, everything else works and the customer's card lives at its web
-address; with them, the same card is issued to both wallets. The full
-walkthrough — certificates, service accounts, what to put in which environment
-variable — is in **[`docs/WALLET.md`](docs/WALLET.md)**.
+credentials, everything else works: the customer's card lives at its web
+address and can be kept on the phone's home screen. With them, the same card is
+issued to both wallets — nobody has to re-join.
+
+**Wallet cards** in the dashboard shows exactly which credentials are missing.
+To see the Apple flow end to end on your own machine before you have Apple
+certificates:
+
+```bash
+npm run wallet:dev-certs -w @loyaltyapp/api -- --write   # then restart the API
+```
+
+Those passes are signed with a throwaway certificate and a real iPhone will not
+install them; the dashboard warns while one is in use. The full walkthrough —
+certificates, service accounts, what to put in which environment variable — is
+in **[`docs/WALLET.md`](docs/WALLET.md)**.
 
 ## Tests
 
