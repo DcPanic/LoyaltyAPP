@@ -24,6 +24,9 @@ for (const key of [
   'GOOGLE_WALLET_ISSUER_ID',
   'GOOGLE_WALLET_SA_EMAIL',
   'GOOGLE_WALLET_SA_PRIVATE_KEY',
+  // Storage too: a test run must never write into the café's real bucket.
+  'SUPABASE_URL',
+  'SUPABASE_SERVICE_KEY',
 ]) {
   process.env[key] = '';
 }

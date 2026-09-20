@@ -1,6 +1,7 @@
 import { api } from '@/lib/api';
 import { requirePermission } from '@/lib/session';
 import { ActionForm } from '@/components/ActionForm';
+import { ImageField } from '@/components/ImageField';
 import { updateProgramAction } from '@/app/actions/admin';
 
 interface Program {
@@ -101,28 +102,13 @@ export default async function LoyaltyPage() {
             />
           </div>
 
-          <div className="field">
-            <label htmlFor="rewardImageUrl">Reward picture (PNG)</label>
-            <input
-              id="rewardImageUrl"
-              name="rewardImageUrl"
-              type="text"
-              placeholder="https://…/free-coffee.png"
-              defaultValue={program?.rewardImageUrl ?? ''}
-            />
-            <p className="hint">
-              Shown on the join page and across the middle of the wallet card. A wide picture works
-              best — roughly 750 by 196. Leave it empty to use your secondary colour instead.
-            </p>
-            {program?.rewardImageUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={program.rewardImageUrl}
-                alt="Reward"
-                style={{ marginTop: '0.5rem', maxWidth: '100%', borderRadius: 8 }}
-              />
-            )}
-          </div>
+          <ImageField
+            name="rewardImageUrl"
+            kind="reward"
+            label="Reward picture"
+            hint="Shown on the join page and across the middle of the wallet card. A wide picture works best — roughly 750 by 196. Leave it empty to use your secondary colour instead."
+            defaultValue={program?.rewardImageUrl}
+          />
 
           <div className="grid cols-3">
             <div className="field">

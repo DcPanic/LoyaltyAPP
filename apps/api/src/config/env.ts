@@ -53,6 +53,19 @@ const envSchema = z.object({
   GOOGLE_WALLET_SA_EMAIL: z.string().optional(),
   GOOGLE_WALLET_SA_PRIVATE_KEY: z.string().optional(),
 
+  // ---- Image storage (Supabase Storage; the café's own project) ----
+  /**
+   * Project URL, e.g. https://abcdefgh.supabase.co
+   *
+   * Blank counts as absent, not as a broken URL: the test suite switches the
+   * feature off by emptying the variable, the same way it does for wallet
+   * credentials, and dotenv would otherwise put the real value back.
+   */
+  SUPABASE_URL: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
+  /** Service key. Server-side only — it is never handed to a browser. */
+  SUPABASE_SERVICE_KEY: z.string().optional(),
+  SUPABASE_MEDIA_BUCKET: z.string().default('media'),
+
   // ---- Billing (architecture only for MVP) ----
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
@@ -102,6 +115,8 @@ export const appleWalletConfigured = Boolean(
     env.APPLE_PASS_KEY_PEM &&
     env.APPLE_WWDR_CERT_PEM,
 );
+
+export const mediaStorageConfigured = Boolean(env.SUPABASE_URL && env.SUPABASE_SERVICE_KEY);
 
 export const googleWalletConfigured = Boolean(
   env.GOOGLE_WALLET_ISSUER_ID && env.GOOGLE_WALLET_SA_EMAIL && env.GOOGLE_WALLET_SA_PRIVATE_KEY,

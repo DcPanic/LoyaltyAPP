@@ -1,6 +1,7 @@
 import { api } from '@/lib/api';
 import { requirePermission } from '@/lib/session';
 import { ActionForm } from '@/components/ActionForm';
+import { ImageField } from '@/components/ImageField';
 import { updateBusinessAction } from '@/app/actions/admin';
 
 interface BusinessSettings {
@@ -50,20 +51,20 @@ export default async function SettingsPage() {
               <label htmlFor="joinUrl">Public join link</label>
               <input id="joinUrl" readOnly value={business.joinUrl} />
             </div>
-            <div className="field">
-              <label htmlFor="logoUrl">Logo URL (PNG)</label>
-              <input id="logoUrl" name="logoUrl" type="text" defaultValue={business.logoUrl ?? ''} />
-              <small className="hint">A square PNG works best on wallet passes.</small>
-            </div>
-            <div className="field">
-              <label htmlFor="coverImageUrl">Cover image URL</label>
-              <input
-                id="coverImageUrl"
-                name="coverImageUrl"
-                type="text"
-                defaultValue={business.coverImageUrl ?? ''}
-              />
-            </div>
+            <ImageField
+              name="logoUrl"
+              kind="logo"
+              label="Logo"
+              hint="Goes on the wallet card and the join page. A square picture works best."
+              defaultValue={business.logoUrl}
+            />
+            <ImageField
+              name="coverImageUrl"
+              kind="cover"
+              label="Cover picture"
+              hint="The wide picture at the top of the join page."
+              defaultValue={business.coverImageUrl}
+            />
           </div>
 
           <div className="row">
