@@ -16,6 +16,7 @@
  */
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import net from 'node:net';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -84,6 +85,33 @@ for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
 process.on('exit', stopAll);
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function portIsFree(port) {
+  return new Promise((resolve) => {
+    const probe = net.createServer();
+    probe.once('error', () => resolve(false));
+    probe.once('listening', () => probe.close(() => resolve(true)));
+    // No host on purpose. Windows lets a second process bind 0.0.0.0 while
+    // another already holds the port, so asking that way reports a busy port as
+    // free — which is exactly the mistake this function exists to prevent.
+    // Listening without a host binds dual-stack and gives a truthful answer.
+    probe.listen(port);
+  });
+}
+
+/**
+ * Expo asks "use another port?" when its own is taken, and there is nobody here
+ * to answer: it gives up and the run ends with the app still pointing at
+ * whatever was there before. A previous Expo that never shut down cleanly is
+ * enough to cause it — and the failure looks, on the phone, like the server is
+ * down. So find a free port ourselves and tell Expo which one to use.
+ */
+async function freeMetroPort(start = 8081) {
+  for (let port = start; port < start + 20; port += 1) {
+    if (await portIsFree(port)) return port;
+  }
+  return start;
+}
 
 async function waitForApi(timeoutMs = 90_000) {
   const started = Date.now();
@@ -191,10 +219,15 @@ async function main() {
     }
   }
 
+  const metroPort = await freeMetroPort();
+  if (metroPort !== 8081) {
+    console.log(`\n→ Port 8081 is taken, using ${metroPort} instead.`);
+  }
+
   console.log('\n→ Starting Expo. Scan the QR code below with Expo Go.');
   console.log('  Your phone does NOT need to be on this Wi-Fi.\n');
 
-  run('npx expo start --tunnel', {
+  run(`npx expo start --tunnel --port ${metroPort}`, {
     cwd: 'apps/mobile',
     name: 'expo',
     env: { EXPO_PUBLIC_API_URL: apiUrl },
