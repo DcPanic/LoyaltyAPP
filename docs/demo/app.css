@@ -401,3 +401,348 @@ tr:last-child td { border-bottom: none; }
 @media print {
   .sidebar, .mobile-nav, .btn { display: none !important; }
 }
+
+/* ===========================================================================
+   The customer's side: depth and a bit of joy
+   ===========================================================================
+
+   Everything below is scoped to `.public`, the pages a customer actually sees
+   — joining, tapping the stamp on the counter, opening their card. The owner's
+   dashboard is a tool and stays flat and quick to read; this is the part that
+   is supposed to feel like a treat.
+
+   The café's own colour still leads: `--brand` comes from the owner's settings
+   and every gradient and shadow here is built from it, so a hundred cafés look
+   like themselves rather than like each other. The playful accents are only
+   ever supporting cast — sparkles, confetti, the glow behind a full card.
+
+   Depth is done with light rather than with perspective tricks: layered
+   shadows, an inner highlight along the top edge, and a gloss sweep. It reads
+   as solid on a phone held at any angle, and it costs nothing to paint.
+   -------------------------------------------------------------------------- */
+
+.public {
+  --joy-mango: #ffb020;
+  --joy-berry: #ff5d8f;
+  --joy-mint: #2ed3a0;
+  --joy-sky: #4cc3ff;
+  --joy-grape: #8b5cf6;
+
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  /* Tight, saturated pools of colour rather than one broad wash: a wash over a
+     pale page turns everything the same muddy tint, which reads as faded
+     instead of lively. Each pool keeps its own corner and its own hue. */
+  background:
+    radial-gradient(38rem 26rem at 8% -6%, color-mix(in srgb, var(--brand, #6f4e37) 62%, transparent), transparent 70%),
+    radial-gradient(30rem 22rem at 104% 4%, color-mix(in srgb, var(--joy-berry) 52%, transparent), transparent 70%),
+    radial-gradient(26rem 20rem at 96% 46%, color-mix(in srgb, var(--joy-mango) 55%, transparent), transparent 72%),
+    radial-gradient(34rem 24rem at 4% 62%, color-mix(in srgb, var(--joy-sky) 42%, transparent), transparent 72%),
+    radial-gradient(30rem 22rem at 52% 112%, color-mix(in srgb, var(--joy-grape) 48%, transparent), transparent 70%),
+    var(--brand-bg, var(--bg));
+}
+
+/* Two slow blobs drifting behind everything. They never touch the text, and
+   they are the only thing on the page that moves on its own. */
+.public::before,
+.public::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.5;
+  pointer-events: none;
+}
+.public::before {
+  width: 24rem;
+  height: 24rem;
+  top: -7rem;
+  left: -8rem;
+  opacity: 0.75;
+  background: radial-gradient(circle at 34% 32%, var(--joy-mint), var(--joy-sky) 55%, transparent 72%);
+  animation: drift-a 22s ease-in-out infinite alternate;
+}
+.public::after {
+  width: 21rem;
+  height: 21rem;
+  bottom: -6rem;
+  right: -7rem;
+  opacity: 0.7;
+  background: radial-gradient(circle at 66% 68%, var(--joy-berry), var(--joy-grape) 58%, transparent 74%);
+  animation: drift-b 27s ease-in-out infinite alternate;
+}
+
+@keyframes drift-a {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to   { transform: translate3d(3rem, 2.5rem, 0) scale(1.12); }
+}
+@keyframes drift-b {
+  from { transform: translate3d(0, 0, 0) scale(1.08); }
+  to   { transform: translate3d(-2.5rem, -2rem, 0) scale(1); }
+}
+
+/* ---- the card the content sits on ---------------------------------------- */
+
+.public .card {
+  position: relative;
+  border: 1px solid color-mix(in srgb, var(--brand, #6f4e37) 14%, var(--line));
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface) 96%, #fff) 0%, var(--surface) 46%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 2px 4px rgba(24, 14, 8, 0.05),
+    0 12px 24px -8px color-mix(in srgb, var(--brand, #6f4e37) 22%, transparent),
+    0 34px 60px -24px rgba(24, 14, 8, 0.35);
+}
+
+/* A single band of light across the top, the way a real card catches a lamp. */
+.public .card::before {
+  content: '';
+  position: absolute;
+  inset: 1px 1px auto;
+  height: 46%;
+  border-radius: 21px 21px 60% 60% / 21px 21px 22% 22%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0));
+  pointer-events: none;
+}
+
+/* ---- the logo becomes a rounded solid ------------------------------------ */
+
+.public-logo {
+  width: 86px;
+  height: 86px;
+  border-radius: 26px;
+  border: 0;
+  box-shadow:
+    0 2px 0 rgba(255, 255, 255, 0.55) inset,
+    0 -10px 18px -8px rgba(0, 0, 0, 0.35) inset,
+    0 10px 20px -6px color-mix(in srgb, var(--brand, #6f4e37) 55%, transparent),
+    0 22px 34px -16px rgba(24, 14, 8, 0.5);
+  animation: logo-in 700ms cubic-bezier(0.2, 1.2, 0.35, 1) both;
+}
+@keyframes logo-in {
+  from { transform: translateY(14px) scale(0.86); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* A café without a cover photo used to get a flat block of its secondary
+   colour. A band of its own colour running into the accents costs nothing and
+   stops the top of the page from looking unfinished. */
+.public-cover {
+  border-radius: 22px;
+  background-image:
+    linear-gradient(115deg,
+      var(--brand, #6f4e37) 0%,
+      color-mix(in srgb, var(--brand, #6f4e37) 55%, var(--joy-berry)) 42%,
+      var(--joy-mango) 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 18px 34px -16px color-mix(in srgb, var(--brand, #6f4e37) 70%, transparent);
+}
+
+/* ---- the offer, stated once and loudly ----------------------------------- */
+
+.public .card.offer {
+  color: #fff;
+  border: 0;
+  background:
+    linear-gradient(150deg,
+      color-mix(in srgb, var(--brand, #6f4e37) 88%, #000) 0%,
+      var(--brand, #6f4e37) 46%,
+      color-mix(in srgb, var(--brand, #6f4e37) 45%, var(--joy-berry)) 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.4) inset,
+    0 -14px 26px -14px rgba(0, 0, 0, 0.6) inset,
+    0 16px 30px -12px color-mix(in srgb, var(--brand, #6f4e37) 70%, transparent),
+    0 38px 60px -28px rgba(24, 14, 8, 0.7);
+}
+.public .card.offer h2 { color: #fff; margin-bottom: 0.35rem; }
+.public .card.offer .hint { color: rgba(255, 255, 255, 0.82); }
+
+.public .offer-count {
+  margin: 0 0 0.15rem;
+  font-size: 4.4rem;
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+  text-shadow: 0 2px 0 rgba(255, 255, 255, 0.28), 0 10px 22px rgba(0, 0, 0, 0.45);
+}
+.public .offer-count span {
+  display: block;
+  margin-top: 0.55rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  opacity: 0.85;
+  text-shadow: none;
+}
+
+/* The gloss that suits a pale card draws a visible seam across a dark one, so
+   here it fades out instead of stopping. */
+.public .card.offer::before {
+  inset: 0;
+  height: auto;
+  border-radius: 22px;
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.26) 0%, rgba(255, 255, 255, 0) 52%);
+}
+
+/* ---- stamps as little pressed tokens ------------------------------------- */
+
+.public .stamp-grid { gap: 0.55rem; justify-content: center; }
+
+.public .stamp-dot {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  font-size: 1.15rem;
+  background: color-mix(in srgb, var(--brand, #6f4e37) 7%, var(--cream));
+  /* Empty slots are wells: the light comes from above, so the shadow sits at
+     the top and the highlight at the bottom. */
+  box-shadow:
+    0 2px 5px rgba(24, 14, 8, 0.18) inset,
+    0 -1px 0 rgba(255, 255, 255, 0.7) inset;
+  transition: transform 160ms ease;
+}
+
+.public .stamp-dot.filled {
+  color: #fff;
+  background:
+    radial-gradient(circle at 32% 26%, color-mix(in srgb, var(--brand, #6f4e37) 55%, #fff) 0%, var(--brand, #6f4e37) 58%),
+    var(--brand, #6f4e37);
+  /* …and a collected one is raised, so the same light lands the other way. */
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 -3px 6px -2px rgba(0, 0, 0, 0.45) inset,
+    0 4px 8px -2px color-mix(in srgb, var(--brand, #6f4e37) 60%, transparent),
+    0 10px 16px -8px rgba(24, 14, 8, 0.6);
+  animation: stamp-pop 520ms cubic-bezier(0.2, 1.35, 0.35, 1) both;
+}
+
+@keyframes stamp-pop {
+  0%   { transform: scale(0.4) rotate(-22deg); opacity: 0; }
+  55%  { transform: scale(1.18) rotate(6deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+/* An empty slot has to read as a hole next to a token that is clearly sitting
+   on top. A ring around the rim does more for that than shading alone. */
+.public .stamp-dot:not(.filled) {
+  background:
+    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--brand, #6f4e37) 16%, var(--cream)) 0%, color-mix(in srgb, var(--brand, #6f4e37) 6%, var(--cream)) 70%);
+  box-shadow:
+    0 3px 7px rgba(24, 14, 8, 0.3) inset,
+    0 -1px 0 rgba(255, 255, 255, 0.85) inset,
+    0 0 0 2px color-mix(in srgb, var(--brand, #6f4e37) 16%, transparent);
+}
+
+/* The very next one to be earned keeps breathing, so the card always points at
+   what happens if you come back. */
+.public .stamp-dot.filled + .stamp-dot:not(.filled),
+.public .stamp-grid > .stamp-dot:not(.filled):first-child {
+  background:
+    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--joy-mango) 42%, var(--cream)) 0%, color-mix(in srgb, var(--joy-mango) 18%, var(--cream)) 72%);
+  box-shadow:
+    0 3px 7px rgba(24, 14, 8, 0.26) inset,
+    0 -1px 0 rgba(255, 255, 255, 0.85) inset,
+    0 0 0 2px color-mix(in srgb, var(--joy-mango) 62%, transparent),
+    0 0 0 6px color-mix(in srgb, var(--joy-mango) 22%, transparent);
+  animation: next-slot 2.4s ease-in-out infinite;
+}
+
+@keyframes next-slot {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.07); }
+}
+
+.public .progress {
+  height: 12px;
+  box-shadow: 0 2px 5px rgba(24, 14, 8, 0.2) inset;
+  background: color-mix(in srgb, var(--brand, #6f4e37) 9%, var(--cream));
+}
+.public .progress > span {
+  background: linear-gradient(90deg, var(--brand, #6f4e37), var(--joy-mango));
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset;
+  border-radius: 999px;
+  transition: width 700ms cubic-bezier(0.3, 1.1, 0.4, 1);
+}
+
+/* ---- the moment something good happens ----------------------------------- */
+
+.public .tap-check {
+  width: 108px;
+  height: 108px;
+  font-size: 3.2rem;
+  background:
+    radial-gradient(circle at 34% 28%, #fff 0%, color-mix(in srgb, var(--joy-mint) 70%, #fff) 30%, var(--joy-mint) 72%);
+  color: #10493a;
+  box-shadow:
+    0 2px 0 rgba(255, 255, 255, 0.85) inset,
+    0 -8px 14px -6px rgba(0, 0, 0, 0.4) inset,
+    0 14px 26px -10px color-mix(in srgb, var(--joy-mint) 75%, transparent),
+    0 30px 44px -22px rgba(24, 14, 8, 0.6);
+  animation: badge-in 760ms cubic-bezier(0.18, 1.4, 0.3, 1) both;
+}
+
+/* A reward is worth a warmer colour than an ordinary stamp. */
+.public .tap-result:has(.tap-check) h2 + .hint + .tap-count { margin-top: 0.25rem; }
+
+@keyframes badge-in {
+  0%   { transform: scale(0.3) rotate(-35deg); opacity: 0; }
+  60%  { transform: scale(1.15) rotate(8deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); }
+}
+
+.public .tap-count {
+  font-size: 3.1rem;
+  letter-spacing: -0.02em;
+  background: linear-gradient(180deg, var(--ink), color-mix(in srgb, var(--brand, #6f4e37) 70%, var(--ink)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ---- buttons you can feel ------------------------------------------------ */
+
+.public .btn,
+.public .wallet-btn {
+  border-radius: 16px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 6px 0 -1px rgba(0, 0, 0, 0.22),
+    0 16px 24px -12px rgba(24, 14, 8, 0.6);
+  transition: transform 110ms ease, box-shadow 110ms ease;
+}
+.public .btn:active,
+.public .wallet-btn:active {
+  transform: translateY(4px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 2px 0 -1px rgba(0, 0, 0, 0.22),
+    0 8px 14px -10px rgba(24, 14, 8, 0.6);
+}
+.public .wallet-btn.disabled { box-shadow: 0 2px 5px rgba(24, 14, 8, 0.12) inset; }
+
+.public .qr-box {
+  border-radius: 20px;
+  box-shadow:
+    0 2px 0 rgba(255, 255, 255, 0.9) inset,
+    0 14px 26px -12px rgba(24, 14, 8, 0.55);
+}
+
+/* ---- when someone would rather things held still ------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .public::before,
+  .public::after,
+  .public .public-logo,
+  .public .stamp-dot.filled,
+  .public .stamp-dot:not(.filled),
+  .public .tap-check {
+    animation: none;
+  }
+  .public .progress > span { transition: none; }
+}

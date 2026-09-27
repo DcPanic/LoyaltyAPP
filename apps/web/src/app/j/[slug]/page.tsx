@@ -47,10 +47,15 @@ export default async function JoinPage({ params }: { params: Promise<{ slug: str
         <BrandHeader business={data.business} />
         <p className="center hint">Join our loyalty program</p>
 
-        <div className="card center" style={{ marginTop: '1rem' }}>
-          <h2>
-            Collect {data.program.stampsRequired} stamps, get {data.program.rewardName}
-          </h2>
+        {/* The offer is the only reason anyone is on this page, so it gets the
+            colour and the weight rather than sharing a plain white box with
+            everything else. */}
+        <div className="card center offer" style={{ marginTop: '1rem' }}>
+          <p className="offer-count">
+            {data.program.stampsRequired}
+            <span>stamps</span>
+          </p>
+          <h2>and {data.program.rewardName} is on us</h2>
           <p className="hint" style={{ marginBottom: 0 }}>
             {data.program.rewardDescription ??
               data.program.description ??

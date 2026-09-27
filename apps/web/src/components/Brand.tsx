@@ -37,7 +37,10 @@ export function BrandHeader({ business }: { business: Branding }) {
           }}
         />
       ) : (
-        <div className="public-cover" style={{ background: business.secondaryColor }} />
+        /* No inline colour on purpose: a café without a cover photo gets the
+           gradient from the stylesheet, which is built from its own colour.
+           An inline background would win over it and flatten the page. */
+        <div className="public-cover" />
       )}
       <div className="public-logo" style={{ background: business.primaryColor }}>
         {business.logoUrl ? (
