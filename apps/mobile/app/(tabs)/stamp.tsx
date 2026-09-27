@@ -32,6 +32,13 @@ export default function StampScreen() {
   const [pending, setPending] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  /**
+   * Signing someone up from behind the counter. A delivery customer never sees
+   * the QR code on the counter, so if staff cannot start a card for them they
+   * simply never get one.
+   */
+  const [signup, setSignup] = useState<{ firstName: string; phone: string } | null>(null);
+
   const loadRecent = useCallback(async () => {
     try {
       const data = await api<{ items: RecentItem[] }>('/v1/stamping/recent');
@@ -89,6 +96,43 @@ export default function StampScreen() {
       setMessage({
         tone: 'error',
         text: err instanceof ApiError ? err.message : 'Search failed',
+      });
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function createCustomer() {
+    if (!signup) return;
+    const firstName = signup.firstName.trim();
+    const phone = signup.phone.trim();
+    if (firstName.length < 1) {
+      setMessage({ tone: 'error', text: 'A first name is needed' });
+      return;
+    }
+    if (phone.length < 6) {
+      setMessage({ tone: 'error', text: 'A phone number is needed to find them again' });
+      return;
+    }
+
+    setPending(true);
+    setMessage(null);
+    try {
+      const created = await api<{ membership: { id: string } }>('/v1/customers', {
+        method: 'POST',
+        body: { firstName, phone, marketingConsent: false },
+      });
+      setSignup(null);
+      setQuery('');
+      setHits(null);
+      // Straight onto their card: the barista opened this to stamp someone.
+      await openCard(created.membership.id);
+      await loadRecent();
+      setMessage({ tone: 'success', text: `${firstName} now has a card` });
+    } catch (err) {
+      setMessage({
+        tone: 'error',
+        text: err instanceof ApiError ? err.message : 'Could not create the customer',
       });
     } finally {
       setPending(false);
@@ -218,7 +262,42 @@ export default function StampScreen() {
     >
       {message && <Banner tone={message.tone}>{message.text}</Banner>}
 
-      {!card ? (
+      {!card && signup ? (
+        <Card>
+          <Text style={styles.h2}>New customer</Text>
+          <Text style={styles.muted}>
+            For someone ordering by phone or delivery. Their card is ready straight away and they
+            can add it to their wallet later from the link.
+          </Text>
+
+          <Text style={[styles.label, { marginTop: 8 }]}>First name</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Maria"
+            placeholderTextColor={theme.colors.muted}
+            value={signup.firstName}
+            onChangeText={(firstName) => setSignup({ ...signup, firstName })}
+            returnKeyType="next"
+          />
+
+          <Text style={[styles.label, { marginTop: 8 }]}>Phone</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="+357 99 123456"
+            placeholderTextColor={theme.colors.muted}
+            keyboardType="phone-pad"
+            autoCapitalize="none"
+            value={signup.phone}
+            onChangeText={(phone) => setSignup({ ...signup, phone })}
+            onSubmitEditing={() => void createCustomer()}
+            returnKeyType="done"
+          />
+          <Text style={styles.muted}>This is how you will find them next time.</Text>
+
+          <Button label="Create card" onPress={() => void createCustomer()} loading={pending} />
+          <Button label="Cancel" variant="secondary" onPress={() => setSignup(null)} />
+        </Card>
+      ) : !card ? (
         <Card>
           <Text style={styles.h2}>Stamp a customer</Text>
           <Button label="Scan customer QR" onPress={() => router.push('/scan')} />
@@ -244,7 +323,33 @@ export default function StampScreen() {
             loading={pending}
           />
 
-          {hits?.length === 0 && <Text style={styles.muted}>No customer matches “{query}”.</Text>}
+          {can('customer:write') && (
+            <Button
+              label="New customer"
+              variant="secondary"
+              onPress={() => setSignup({ firstName: '', phone: '' })}
+              disabled={pending}
+            />
+          )}
+
+          {/* Offered after a search that found nobody, because that is the
+              moment someone turns out not to have a card yet. */}
+          {hits?.length === 0 && (
+            <View style={{ gap: 8 }}>
+              <Text style={styles.muted}>No customer matches “{query}”.</Text>
+              {can('customer:write') && (
+                <Button
+                  label="Start a card for them"
+                  onPress={() =>
+                    setSignup({
+                      firstName: /^[+\d\s()-]+$/.test(query.trim()) ? '' : query.trim(),
+                      phone: /^[+\d\s()-]+$/.test(query.trim()) ? query.trim() : '',
+                    })
+                  }
+                />
+              )}
+            </View>
+          )}
           {hits && hits.length > 0 && (
             <View style={{ gap: 8, marginTop: 8 }}>
               {hits.map((hit) => (

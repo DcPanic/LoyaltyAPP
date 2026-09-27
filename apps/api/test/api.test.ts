@@ -122,7 +122,7 @@ describe('API', () => {
     expect(second.body.membership.stamps).toBe(1);
   });
 
-  it('restricts staff to stamping only', async () => {
+  it('keeps staff to counter work, including signing a delivery customer up', async () => {
     const invite = await request(app)
       .post('/v1/staff/invite')
       .set('authorization', `Bearer ${cafeA.accessToken}`)
@@ -163,6 +163,25 @@ describe('API', () => {
         .send({ membershipId: 'no-such-membership' });
       expect(res.status).not.toBe(403);
     }
+
+    // A delivery customer never stands in front of the QR code on the counter,
+    // so staff have to be able to start a card themselves or that customer
+    // never gets one.
+    const signedUp = await request(app)
+      .post('/v1/customers')
+      .set('authorization', `Bearer ${staffToken}`)
+      .send({ firstName: 'Delivery', phone: '+35799881122', marketingConsent: false });
+    expect(signedUp.status).toBe(201);
+    expect(signedUp.body.membership.memberCode).toBeTruthy();
+
+    // The new card belongs to this café and is stampable straight away.
+    const stamped = await request(app)
+      .post('/v1/stamping/stamp')
+      .set('authorization', `Bearer ${staffToken}`)
+      .set('idempotency-key', 'staff-signed-up-then-stamped')
+      .send({ membershipId: signedUp.body.membership.id, amount: 1 });
+    expect(stamped.status).toBe(200);
+    expect(stamped.body.membership.stamps).toBe(1);
   });
 
   it('stamps through an NFC tag and rejects a disabled tag', async () => {

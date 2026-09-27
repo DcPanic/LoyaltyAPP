@@ -44,10 +44,13 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'nfc:manage',
     'audit:read',
   ],
-  // Staff serve the counter: find the customer, add stamps, and hand over a
-  // reward that has been earned. They see no takings, no settings and no other
-  // staff. A membership may narrow or widen this per person.
-  STAFF: ['stamp:add', 'customer:read', 'reward:redeem'],
+  // Staff serve the counter: find the customer, sign up a new one, add stamps,
+  // and hand over a reward that has been earned. Signing someone up matters for
+  // phone and delivery orders, where the customer never stands in front of the
+  // QR code and the barista is the only one who can start their card. They see
+  // no takings, no settings and no other staff. A membership may narrow or
+  // widen this per person.
+  STAFF: ['stamp:add', 'customer:read', 'customer:write', 'reward:redeem'],
 };
 
 export function permissionsForRole(role: Role): Permission[] {
