@@ -17,7 +17,9 @@ export interface Branding {
 export function BrandStyle({ business }: { business: Pick<Branding, 'primaryColor' | 'secondaryColor'> }) {
   return (
     <style>{`.public{--brand:${business.primaryColor};--brand-secondary:${business.secondaryColor};}
-.public .btn{background:${business.primaryColor};}
+/* Not .secondary: those sit quietly beside the main action, and painting
+   them the brand colour leaves dark text on a dark button. */
+.public .btn:not(.secondary){background:${business.primaryColor};}
 .public .stamp-dot.filled{background:${business.primaryColor};border-color:${business.primaryColor};}
 .public .progress>span{background:${business.primaryColor};}`}</style>
   );

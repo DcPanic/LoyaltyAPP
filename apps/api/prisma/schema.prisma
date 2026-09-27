@@ -85,6 +85,10 @@ model Business {
   openingHours     Json?
   privacyPolicyUrl String?
   termsUrl         String?
+  /// Offer a note box on the page the counter code opens.
+  suggestionsEnabled Boolean @default(true)
+  /// Offer something to play while the coffee is made. Off unless asked for.
+  gameEnabled        Boolean @default(false)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -104,6 +108,61 @@ model Business {
   consentRecords   ConsentRecord[]
   subscription     Subscription?
   idempotencyKeys  IdempotencyKey[]
+  links            BusinessLink[]
+  suggestions      Suggestion[]
+}
+
+/// What a café offers on the page its QR code opens.
+/// The loyalty card is why the platform exists, but the code on the counter is
+/// the one thing every customer scans, and a café has more to say than "join":
+/// the menu, where to leave a review, the Wi-Fi password, where to follow them.
+/// Kept as rows rather than columns so a café can add whatever it has without
+/// waiting for the platform to grow a field for it.
+enum BusinessLinkKind {
+  INSTAGRAM
+  TIKTOK
+  FACEBOOK
+  MENU
+  REVIEW
+  ORDER
+  WIFI
+  CUSTOM
+}
+
+model BusinessLink {
+  id         String           @id @default(cuid())
+  businessId String
+  kind       BusinessLinkKind
+  label      String
+  /// Where it goes. Empty for WIFI, which shows a password instead.
+  url        String?
+  /// The Wi-Fi password, or the network name for CUSTOM rows that need one.
+  value      String?
+  sortOrder  Int              @default(0)
+  isActive   Boolean          @default(true)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, sortOrder])
+}
+
+/// A note a customer left from the page the counter code opens.
+model Suggestion {
+  id         String    @id @default(cuid())
+  businessId String
+  customerId String?
+  message    String
+  /// Optional: only if they want an answer.
+  contact    String?
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  business Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, createdAt])
 }
 
 model User {
@@ -214,6 +273,7 @@ model Customer {
   transactions   Transaction[]
   redemptions    RewardRedemption[]
   consentRecords ConsentRecord[]
+  suggestions    Suggestion[]
 
   @@unique([businessId, phone])
   @@unique([businessId, email])

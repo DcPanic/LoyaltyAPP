@@ -72,6 +72,64 @@ export const updateBusinessSchema = z.object({
   openingHours: openingHoursSchema.nullish(),
   privacyPolicyUrl: z.string().url().max(2048).nullish(),
   termsUrl: z.string().url().max(2048).nullish(),
+  suggestionsEnabled: z.boolean().optional(),
+  gameEnabled: z.boolean().optional(),
+});
+
+/* ------------------------------------------------ the counter code page ---- */
+
+export const BUSINESS_LINK_KINDS = [
+  'INSTAGRAM',
+  'TIKTOK',
+  'FACEBOOK',
+  'MENU',
+  'REVIEW',
+  'ORDER',
+  'WIFI',
+  'CUSTOM',
+] as const;
+export type BusinessLinkKind = (typeof BUSINESS_LINK_KINDS)[number];
+
+/**
+ * One row on the page a customer reaches by scanning the code on the counter.
+ *
+ * Wi-Fi is the odd one: it carries a password to show rather than an address to
+ * open, so it is the only kind that may leave `url` empty — and the only one
+ * that must not.
+ */
+export const businessLinkSchema = z
+  .object({
+    kind: z.enum(BUSINESS_LINK_KINDS),
+    label: z.string().trim().min(1).max(60),
+    url: z.string().trim().url().max(2048).nullish(),
+    value: z.string().trim().max(160).nullish(),
+    sortOrder: z.number().int().min(0).max(999).optional(),
+    isActive: z.boolean().optional(),
+  })
+  .superRefine((v, ctx) => {
+    if (v.kind === 'WIFI') {
+      if (!v.value) {
+        ctx.addIssue({ code: 'custom', path: ['value'], message: 'A Wi-Fi password is required' });
+      }
+      return;
+    }
+    if (!v.url) {
+      ctx.addIssue({ code: 'custom', path: ['url'], message: 'A web address is required' });
+    }
+  });
+
+export const updateBusinessLinkSchema = z.object({
+  label: z.string().trim().min(1).max(60).optional(),
+  url: z.string().trim().url().max(2048).nullish(),
+  value: z.string().trim().max(160).nullish(),
+  sortOrder: z.number().int().min(0).max(999).optional(),
+  isActive: z.boolean().optional(),
+});
+
+export const suggestionSchema = z.object({
+  message: z.string().trim().min(3).max(2000),
+  /** Only if they want to be answered. */
+  contact: z.string().trim().max(160).nullish(),
 });
 
 export const locationSchema = z.object({

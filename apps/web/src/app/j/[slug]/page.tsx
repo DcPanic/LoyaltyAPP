@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { api, ApiError } from '@/lib/api';
 import { BrandHeader, type Branding } from '@/components/Brand';
+import { HubRows, type HubLink } from '@/components/HubRows';
 import { JoinForm } from './JoinForm';
 
 interface JoinPageData {
@@ -14,6 +15,8 @@ interface JoinPageData {
     rewardDescription: string | null;
     rewardImageUrl: string | null;
   };
+  links: HubLink[];
+  features: { suggestions: boolean; game: boolean };
   wallet: { apple: boolean; google: boolean };
 }
 
@@ -63,7 +66,16 @@ export default async function JoinPage({ params }: { params: Promise<{ slug: str
           </p>
         </div>
 
-        <div className="card" style={{ marginTop: '1rem' }}>
+        {/* Everything the café offers, in the order they chose. The card is
+            first and stays first; the rest is theirs. */}
+        <HubRows
+          slug={slug}
+          links={data.links}
+          rewardsLabel="Start earning rewards"
+          rewardsSub={`${data.program.stampsRequired} stamps and ${data.program.rewardName} is on us`}
+          suggestions={data.features.suggestions}
+          game={data.features.game}
+        >
           <JoinForm
             slug={slug}
             business={data.business}
@@ -71,7 +83,7 @@ export default async function JoinPage({ params }: { params: Promise<{ slug: str
             stampsRequired={data.program.stampsRequired}
             rewardName={data.program.rewardName}
           />
-        </div>
+        </HubRows>
 
         <p className="center hint" style={{ marginTop: '1rem' }}>
           {data.business.termsUrl && (

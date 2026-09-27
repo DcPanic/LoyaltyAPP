@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { joinSchema } from '@loyaltyapp/shared';
+import { joinSchema, suggestionSchema } from '@loyaltyapp/shared';
 import { env } from '../config/env.js';
 import { prisma } from '../lib/prisma.js';
 import { asyncHandler, clientIp, parseBody } from '../lib/http.js';
@@ -64,6 +64,13 @@ publicRouter.get(
     const business = await prisma.business.findUnique({ where: { slug: req.params.slug! } });
     if (!business) throw notFound('Café not found');
     const program = await activeProgram(business.id);
+    const links = await prisma.businessLink.findMany({
+      where: { businessId: business.id, isActive: true },
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      // The Wi-Fi password is the point of a Wi-Fi row, so it goes out with the
+      // rest; everything here is what the café chose to show on a public page.
+      select: { id: true, kind: true, label: true, url: true, value: true },
+    });
     res.json({
       business: branding(business),
       program: {
@@ -75,8 +82,40 @@ publicRouter.get(
         rewardDescription: program.rewardDescription,
         rewardImageUrl: program.rewardImageUrl,
       },
+      links,
+      features: {
+        suggestions: business.suggestionsEnabled,
+        game: business.gameEnabled,
+      },
       wallet: walletAvailability(),
     });
+  }),
+);
+
+/**
+ * A note from the page the counter code opens.
+ *
+ * Open to anyone standing in the café, so it is rate limited and the message is
+ * capped: it is a suggestion box, not a channel. Nothing here identifies the
+ * writer unless they choose to leave a way to be answered.
+ */
+publicRouter.post(
+  '/suggestions/:slug',
+  publicLimiter,
+  asyncHandler(async (req, res) => {
+    const business = await prisma.business.findUnique({ where: { slug: req.params.slug! } });
+    if (!business) throw notFound('Café not found');
+    if (!business.suggestionsEnabled) throw forbidden('This café is not taking notes right now');
+
+    const input = parseBody(suggestionSchema, req);
+    await prisma.suggestion.create({
+      data: {
+        businessId: business.id,
+        message: input.message,
+        contact: input.contact ?? null,
+      },
+    });
+    res.status(201).json({ ok: true });
   }),
 );
 
