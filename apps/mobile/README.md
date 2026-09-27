@@ -38,7 +38,7 @@ Sign in with the seeded accounts:
 | Account | Email | Password |
 |---|---|---|
 | Owner | `owner@coffeehouse.cy` | `CoffeeHouse123!` |
-| Barista (stamp only) | `barista@coffeehouse.cy` | `CoffeeHouse123!` |
+| Barista (counter only) | `barista@coffeehouse.cy` | `CoffeeHouse123!` |
 
 ## If the phone cannot reach the API
 

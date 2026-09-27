@@ -372,6 +372,56 @@ describe('stamp engine', () => {
     ).rejects.toThrow(/no reward to put back/i);
   });
 
+  it('makes a reward usable after the owner fills a card by hand', async () => {
+    // Correcting a balance upwards is how an owner fixes a stamp that was
+    // missed. If it only moved the number, the card would say the reward was
+    // ready while every attempt to hand it over failed.
+    const { membership } = await createMember(businessId, programId);
+    const adjusted = await adjustStamps({
+      businessId,
+      membershipId: membership.id,
+      stamps: 10,
+      reason: 'Missed a stamp last week',
+      staffUserId: ownerId,
+      actorLabel: 'Owner',
+    });
+    expect(adjusted.rewardAvailable).toBe(true);
+
+    const redeemed = await redeemReward({
+      businessId,
+      membershipId: membership.id,
+      staffUserId: ownerId,
+      actorLabel: 'Owner',
+      idempotencyKey: 'adjust-then-redeem',
+    });
+    expect(redeemed.membership.stamps).toBe(0);
+  });
+
+  it('takes the reward back when the owner corrects a balance downwards', async () => {
+    const { membership } = await createMember(businessId, programId);
+    await adjustStamps({
+      businessId,
+      membershipId: membership.id,
+      stamps: 10,
+      reason: 'Typo',
+      staffUserId: ownerId,
+      actorLabel: 'Owner',
+    });
+    await adjustStamps({
+      businessId,
+      membershipId: membership.id,
+      stamps: 4,
+      reason: 'That was the wrong customer',
+      staffUserId: ownerId,
+      actorLabel: 'Owner',
+    });
+
+    const open = await prisma.rewardRedemption.count({
+      where: { membershipId: membership.id, redeemedAt: null },
+    });
+    expect(open).toBe(0);
+  });
+
   it('refuses to stamp a membership from another business', async () => {
     const other = await createBusiness('Espresso Corner');
     const { membership } = await createMember(other.business.id, other.program.id);

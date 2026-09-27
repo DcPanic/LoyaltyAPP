@@ -42,6 +42,15 @@ services:
           property: host
       - key: LOG_LEVEL
         value: info
+      # Where uploaded logos and reward pictures are kept. Without these the
+      # dashboard still accepts a picture's web address, it just cannot take a
+      # file. The service key is read only by this process.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: SUPABASE_MEDIA_BUCKET
+        value: media
       # Wallet credentials — leave empty until you have them from Apple and
       # Google. Everything else works without them (see docs/WALLET.md).
       - key: APPLE_PASS_TYPE_IDENTIFIER

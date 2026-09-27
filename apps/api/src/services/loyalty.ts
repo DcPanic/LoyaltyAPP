@@ -118,6 +118,71 @@ async function stampMultiplier(businessId: string): Promise<number> {
   return campaign?.stampMultiplier ?? 1;
 }
 
+/**
+ * Brings the rewards a customer is holding in line with their balance.
+ *
+ * Entitlements are derived from the balance, so anything that moves the balance
+ * has to settle them in the same breath. Collecting the tenth stamp opens one;
+ * an owner correcting a balance downwards takes back one that was never handed
+ * over. Rewards already given are never touched — those are history.
+ *
+ * Returns the change in rewards earned: positive when opened, negative when
+ * withdrawn.
+ */
+async function reconcileEntitlements(
+  tx: Prisma.TransactionClient,
+  membership: LoyaltyMembership & { program: LoyaltyProgram },
+  opts: { businessId: string; locationId?: string | null },
+): Promise<number> {
+  const target = entitlementsFor(membership.stamps, membership.program.stampsRequired);
+  const open = await tx.rewardRedemption.findMany({
+    where: { membershipId: membership.id, redeemedAt: null },
+    orderBy: { earnedAt: 'asc' },
+  });
+
+  if (open.length >= target) {
+    const surplus = open.slice(target);
+    if (surplus.length > 0) {
+      await tx.rewardRedemption.deleteMany({ where: { id: { in: surplus.map((r) => r.id) } } });
+    }
+    return -surplus.length;
+  }
+
+  let created = 0;
+  for (let i = open.length; i < target; i += 1) {
+    const reward = await tx.reward.findFirst({
+      where: { businessId: opts.businessId, programId: membership.programId, isActive: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    const expiryDays = reward?.expiryDays ?? membership.program.rewardExpiryDays ?? null;
+    await tx.rewardRedemption.create({
+      data: {
+        businessId: opts.businessId,
+        customerId: membership.customerId,
+        membershipId: membership.id,
+        rewardId: reward?.id ?? null,
+        locationId: opts.locationId ?? null,
+        stampsSpent: 0,
+        expiresAt: expiryDays ? new Date(Date.now() + expiryDays * 86_400_000) : null,
+      },
+    });
+    await tx.transaction.create({
+      data: {
+        businessId: opts.businessId,
+        customerId: membership.customerId,
+        membershipId: membership.id,
+        locationId: opts.locationId ?? null,
+        type: 'REWARD_EARNED',
+        channel: 'SYSTEM',
+        amount: 0,
+        balanceAfter: membership.stamps,
+      },
+    });
+    created += 1;
+  }
+  return created;
+}
+
 async function existingTransaction(businessId: string, idempotencyKey: string) {
   return prisma.transaction.findFirst({
     where: { businessId, idempotencyKey },
@@ -199,44 +264,10 @@ export async function addStamps(cmd: StampCommand): Promise<StampResult> {
         },
       });
 
-      const required = updated.program.stampsRequired;
-      const entitlements = entitlementsFor(updated.stamps, required);
-      const pending = await tx.rewardRedemption.count({
-        where: { membershipId: membership.id, redeemedAt: null },
+      const unlocked = await reconcileEntitlements(tx, updated, {
+        businessId: cmd.businessId,
+        locationId: cmd.locationId,
       });
-
-      let unlocked = 0;
-      for (let i = pending; i < entitlements; i += 1) {
-        const reward = await tx.reward.findFirst({
-          where: { businessId: cmd.businessId, programId: updated.programId, isActive: true },
-          orderBy: { createdAt: 'asc' },
-        });
-        const expiryDays = reward?.expiryDays ?? updated.program.rewardExpiryDays ?? null;
-        await tx.rewardRedemption.create({
-          data: {
-            businessId: cmd.businessId,
-            customerId: membership.customerId,
-            membershipId: membership.id,
-            rewardId: reward?.id ?? null,
-            locationId: cmd.locationId ?? null,
-            stampsSpent: 0,
-            expiresAt: expiryDays ? new Date(Date.now() + expiryDays * 86_400_000) : null,
-          },
-        });
-        await tx.transaction.create({
-          data: {
-            businessId: cmd.businessId,
-            customerId: membership.customerId,
-            membershipId: membership.id,
-            locationId: cmd.locationId ?? null,
-            type: 'REWARD_EARNED',
-            channel: 'SYSTEM',
-            amount: 0,
-            balanceAfter: updated.stamps,
-          },
-        });
-        unlocked += 1;
-      }
 
       const finalMembership = unlocked
         ? await tx.loyaltyMembership.update({
@@ -632,7 +663,16 @@ export async function adjustStamps(params: {
         note: params.reason,
       },
     });
-    return m;
+
+    // Moving the balance has to settle the rewards that hang off it, or the
+    // card says the reward is ready while handing it over keeps failing.
+    const change = await reconcileEntitlements(tx, m, { businessId: params.businessId });
+    if (change === 0) return m;
+    return tx.loyaltyMembership.update({
+      where: { id: membership.id },
+      data: { rewardsEarned: { increment: change } },
+      include: { program: true },
+    });
   });
 
   void recordAudit({

@@ -51,6 +51,13 @@ cd apps/mobile && npx tsc --noEmit    # mobile
 - **Tenant isolation.** Every tenant-owned query is scoped by `businessId` taken
   from the session, never from the request body. Use `findFirst({ where: { id,
   businessId } })`, not `findUnique({ where: { id } })`.
+- **A balance and its rewards move together.** Entitlements are derived from the
+  balance, so anything that changes a balance settles them in the same
+  transaction (`reconcileEntitlements`). Skipping it produces a card that says
+  the reward is ready and then refuses to hand it over.
+- **Uploaded artwork is checked by its bytes**, not by the content type the
+  caller sent, because it is rendered on wallet passes and on pages customers
+  open by tapping a tag in the shop.
 - **Permissions are server-side.** The apps use the permission list only to
   decide what to render; every route checks it again.
 - **Stamps are exactly-once.** The unique index on
@@ -90,10 +97,16 @@ ignored by git and must stay that way.
 
 Working end to end, with tests: multi-tenancy, owner and staff accounts with
 server-side permissions, loyalty programs, the stamp engine (staff, NFC tap, QR
-fallback, phone and delivery orders), rewards and redemption, customer CRM with
-segments, campaigns, analytics, NFC tag management, audit log, GDPR export and
-erasure, the Apple Wallet pass writer and web service, the Google Wallet client,
-the responsive web app and the Expo app.
+fallback, phone and delivery orders), a full card settling itself at the tag and
+the correction that puts a reward back, customer CRM with segments, campaigns,
+analytics, NFC tag management, audit log, GDPR export and erasure, the Apple
+Wallet pass writer and web service, the Google Wallet client, uploaded branding
+and reward artwork, the responsive web app and the Expo app.
+
+The owner edits the card itself from the dashboard: **Loyalty** sets how many
+stamps a reward costs, what the reward is and the picture of it; **Settings**
+sets the colours, the logo and the details printed on the back of the pass.
+All of it reaches both wallets.
 
 Deliberately not done yet:
 

@@ -42,8 +42,10 @@ with a valid id in hand. The API test suite asserts this directly.
 Roles (`OWNER`, `MANAGER`, `STAFF`) expand to a permission list in
 `packages/shared/src/roles.ts`; a membership may override the list. The server
 checks permissions on every route; the web app and mobile app use the same list
-only to decide what to render. Staff default to *stamp only*: they can find a
-customer and add stamps, and nothing else — on either platform.
+only to decide what to render. Staff default to counter work: find a customer,
+add stamps, hand over a reward that has been earned, and put one back that was
+given by mistake. They see no takings, no settings, no other staff and no
+customer they have not searched for — on either platform.
 
 ## The stamp engine
 
@@ -62,10 +64,28 @@ customer and add stamps, and nothing else — on either platform.
    guarantees exactly-once.
 5. **Reward entitlements** are derived: `floor(stamps / stampsRequired)` minus
    the entitlements already pending. The balance is not reset on earning; it is
-   reduced when a barista redeems, which is what keeps the wallet card honest
-   ("10/10 — reward available" until someone actually hands over the coffee).
+   reduced when the reward is handed over, which is what keeps the wallet card
+   honest ("10/10 — reward available" until someone actually gives the coffee).
+   Every path that moves a balance settles entitlements in the same
+   transaction, including an owner's manual correction — otherwise a card can
+   claim a reward that cannot be redeemed.
 6. **Wallet sync** happens after the commit and is best-effort: a failed push
    never fails a stamp, and the next pass fetch rebuilds from the database.
+
+## A full card at the tag
+
+A tap on the counter tag adds a stamp, except when the card is already full and
+a reward is waiting: then it hands that reward over instead, the balance drops
+by one card's worth, and the customer starts again. This is what lets a full
+card settle itself with nobody behind the counter, which is the point for phone
+and delivery orders. The tap keeps the caller's idempotency key, so it is one
+action either way and can never both stamp and redeem; an expired entitlement
+falls back to an ordinary stamp rather than an error.
+
+Because a tap can spend a card on its own, a customer who only wanted a stamp
+can spend one by accident. Whoever may hand a reward over may also put it back
+(`undoRedemption`): the stamps return, the entitlement opens again, and both the
+redemption and the correction stay in the history.
 
 ## Realtime
 

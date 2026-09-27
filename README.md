@@ -34,6 +34,9 @@ Web app (Next.js) ─┘             │
 | Wallet setup status page + dev certificates for local testing | ✅ |
 | Home-screen card fallback while wallet credentials are pending | ✅ |
 | NFC tap stamping + QR fallback, no customer app | ✅ |
+| A full card settles itself at the tag, and a mistake can be put back | ✅ |
+| Owner edits the card: stamps needed, reward, colours, logo, reward picture | ✅ |
+| Artwork uploaded from the dashboard, no image hosting to arrange | ✅ |
 | Staff stamping: scan, search, phone and delivery orders | ✅ |
 | Staff accounts, invitations, role permissions | ✅ |
 | Rewards, redemption, transaction history | ✅ |
@@ -108,7 +111,7 @@ The seed creates a demo café:
 | Account | Email | Password |
 |---|---|---|
 | Owner | `owner@coffeehouse.cy` | `CoffeeHouse123!` |
-| Barista (stamp only) | `barista@coffeehouse.cy` | `CoffeeHouse123!` |
+| Barista (counter only) | `barista@coffeehouse.cy` | `CoffeeHouse123!` |
 
 Then:
 
