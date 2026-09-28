@@ -66,6 +66,23 @@ const envSchema = z.object({
   SUPABASE_SERVICE_KEY: z.string().optional(),
   SUPABASE_MEDIA_BUCKET: z.string().default('media'),
 
+  // ---- Email (Resend; anything that speaks its API would do) ----
+  RESEND_API_KEY: z.string().optional(),
+  /// The visible sender. Has to be an address on a domain Resend has verified.
+  MAIL_FROM: z.string().default('LoyaltyApp <onboarding@resend.dev>'),
+
+  // ---- Signing in with Google ----
+  GOOGLE_OAUTH_CLIENT_ID: z.string().optional(),
+  GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
+
+  // ---- Signing in with Apple ----
+  /// The Services ID, not the app's bundle id.
+  APPLE_SIGNIN_CLIENT_ID: z.string().optional(),
+  APPLE_SIGNIN_TEAM_ID: z.string().optional(),
+  APPLE_SIGNIN_KEY_ID: z.string().optional(),
+  /// Contents of the .p8 key file.
+  APPLE_SIGNIN_PRIVATE_KEY: z.string().optional(),
+
   // ---- Billing (architecture only for MVP) ----
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
@@ -117,6 +134,19 @@ export const appleWalletConfigured = Boolean(
 );
 
 export const mediaStorageConfigured = Boolean(env.SUPABASE_URL && env.SUPABASE_SERVICE_KEY);
+
+export const mailConfigured = Boolean(env.RESEND_API_KEY);
+
+export const googleSignInConfigured = Boolean(
+  env.GOOGLE_OAUTH_CLIENT_ID && env.GOOGLE_OAUTH_CLIENT_SECRET,
+);
+
+export const appleSignInConfigured = Boolean(
+  env.APPLE_SIGNIN_CLIENT_ID &&
+    env.APPLE_SIGNIN_TEAM_ID &&
+    env.APPLE_SIGNIN_KEY_ID &&
+    env.APPLE_SIGNIN_PRIVATE_KEY,
+);
 
 export const googleWalletConfigured = Boolean(
   env.GOOGLE_WALLET_ISSUER_ID && env.GOOGLE_WALLET_SA_EMAIL && env.GOOGLE_WALLET_SA_PRIVATE_KEY,

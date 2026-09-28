@@ -41,7 +41,12 @@ async function main(): Promise<void> {
   const owner = await prisma.user.upsert({
     where: { email: 'owner@coffeehouse.cy' },
     update: {},
-    create: { email: 'owner@coffeehouse.cy', name: 'Andreas Papadopoulos', passwordHash },
+    create: {
+      email: 'owner@coffeehouse.cy',
+      name: 'Andreas Papadopoulos',
+      passwordHash,
+      emailVerifiedAt: new Date(),
+    },
   });
   await prisma.staffMembership.upsert({
     where: { businessId_userId: { businessId: business.id, userId: owner.id } },
@@ -52,7 +57,12 @@ async function main(): Promise<void> {
   const barista = await prisma.user.upsert({
     where: { email: 'barista@coffeehouse.cy' },
     update: {},
-    create: { email: 'barista@coffeehouse.cy', name: 'Elena Georgiou', passwordHash },
+    create: {
+      email: 'barista@coffeehouse.cy',
+      name: 'Elena Georgiou',
+      passwordHash,
+      emailVerifiedAt: new Date(),
+    },
   });
   await prisma.staffMembership.upsert({
     where: { businessId_userId: { businessId: business.id, userId: barista.id } },

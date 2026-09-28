@@ -1,6 +1,7 @@
 import { requireSession } from '@/lib/session';
 import { MobileNav, Sidebar } from '@/components/Nav';
 import { logoutAction } from '@/app/actions/auth';
+import { VerifyBanner } from '@/components/VerifyBanner';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await requireSession();
@@ -24,6 +25,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </button>
           </form>
         </header>
+        {!session.user.emailVerified && <VerifyBanner />}
         {children}
       </div>
       <MobileNav permissions={session.user.permissions} />

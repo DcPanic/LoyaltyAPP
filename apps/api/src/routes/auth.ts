@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import {
   acceptInviteSchema,
   loginSchema,
@@ -11,7 +12,7 @@ import {
 import { env } from '../config/env.js';
 import { prisma } from '../lib/prisma.js';
 import { asyncHandler, clientIp, parseBody } from '../lib/http.js';
-import { conflict, unauthorized } from '../lib/errors.js';
+import { badRequest, conflict, forbidden, unauthorized } from '../lib/errors.js';
 import {
   hashPassword,
   randomToken,
@@ -23,6 +24,7 @@ import { signAccessToken, verifyInviteToken } from '../lib/tokens.js';
 import { requireAuth, auth } from '../middleware/auth.js';
 import { authLimiter } from '../middleware/rateLimit.js';
 import { recordAudit } from '../services/audit.js';
+import { consumeVerification, issueVerification } from '../services/verification.js';
 
 export const authRouter: Router = Router();
 
@@ -64,6 +66,7 @@ async function sessionPayload(userId: string, businessId: string) {
       id: membership.userId,
       email: membership.user.email,
       name: membership.user.name,
+      emailVerified: membership.user.emailVerifiedAt !== null,
       businessId,
       role,
       permissions: (membership.permissions.length > 0
@@ -163,8 +166,18 @@ authRouter.post(
       ip: clientIp(req),
     });
 
+    // Signing up leaves the address unproved, so the session comes with the
+    // confirmation already on its way. The link comes back only when it could
+    // not be sent, so a café without an email provider is not stuck.
+    const verification = await issueVerification(user.id);
+
     const tokens = await issueSession(user.id, business.id, membership.id, req.headers['user-agent']);
-    res.status(201).json({ ...tokens, ...(await sessionPayload(user.id, business.id)) });
+    res.status(201).json({
+      ...tokens,
+      ...(await sessionPayload(user.id, business.id)),
+      emailVerified: false,
+      verificationLink: verification.link,
+    });
   }),
 );
 
@@ -179,8 +192,20 @@ authRouter.post(
     });
     if (!user || !user.isActive) throw unauthorized('Invalid email or password');
 
+    // An account created through Google or Apple has no password to check, and
+    // must not fall through to one: an empty hash would match nothing, but
+    // saying so plainly is what stops someone wondering why their password
+    // never works.
+    if (!user.passwordHash) {
+      throw unauthorized('This account signs in with Google or Apple');
+    }
+
     const valid = await verifyPassword(input.password, user.passwordHash);
     if (!valid) throw unauthorized('Invalid email or password');
+
+    if (!user.emailVerifiedAt) {
+      throw forbidden('Confirm your email address first — check your inbox for the link');
+    }
 
     const membership = user.staffMemberships[0];
     if (!membership) throw unauthorized('This account is not linked to a business');
@@ -269,7 +294,14 @@ authRouter.post(
       const user =
         existing ??
         (await tx.user.create({
-          data: { email: invite.email, name: input.name, passwordHash },
+          // Accepting an invitation is itself proof of the address: the
+          // link only ever reached them through that inbox.
+          data: {
+            email: invite.email,
+            name: input.name,
+            passwordHash,
+            emailVerifiedAt: new Date(),
+          },
         }));
 
       const membership = await tx.staffMembership.upsert({
@@ -335,5 +367,63 @@ authRouter.get(
       businessName: invite.business.name,
       businessLogo: invite.business.logoUrl,
     });
+  }),
+);
+
+/* ------------------------------------------------- confirming an email ---- */
+
+/**
+ * Confirms an address from the link in the email.
+ *
+ * Open on purpose: whoever holds the link is, by definition, whoever can read
+ * that inbox, which is the whole point of the exercise. It is rate limited
+ * because the token is the only secret involved.
+ */
+authRouter.post(
+  '/verify-email',
+  authLimiter,
+  asyncHandler(async (req, res) => {
+    const { token } = parseBody(
+      z.object({ token: z.string().min(20).max(500) }),
+      req,
+    );
+    const { userId } = await consumeVerification(token);
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { staffMemberships: { where: { isActive: true }, orderBy: { createdAt: 'asc' } } },
+    });
+    if (!user) throw badRequest('No such account');
+
+    const membership = user.staffMemberships[0];
+    if (!membership) {
+      // Confirmed, but not attached to a café yet — an invitation they have not
+      // accepted. Saying so beats a session that goes nowhere.
+      res.json({ verified: true, session: null });
+      return;
+    }
+
+    const tokens = await issueSession(
+      user.id,
+      membership.businessId,
+      membership.id,
+      req.headers['user-agent'],
+    );
+    res.json({
+      verified: true,
+      ...tokens,
+      ...(await sessionPayload(user.id, membership.businessId)),
+    });
+  }),
+);
+
+/** Sends the confirmation again, for a link that expired or never arrived. */
+authRouter.post(
+  '/resend-verification',
+  authLimiter,
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const ctx = auth(req);
+    const result = await issueVerification(ctx.userId);
+    res.json({ sent: result.sent, verificationLink: result.link });
   }),
 );

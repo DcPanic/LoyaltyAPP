@@ -30,6 +30,7 @@ export async function createOwner(businessId: string, email?: string) {
       email: email ?? `owner${counter}@example.com`,
       name: 'Owner',
       passwordHash: await hashPassword('SuperSecret123!'),
+      emailVerifiedAt: new Date(),
     },
   });
   const membership = await prisma.staffMembership.create({
@@ -45,6 +46,7 @@ export async function createStaff(businessId: string, email?: string) {
       email: email ?? `staff${counter}@example.com`,
       name: 'Barista',
       passwordHash: await hashPassword('SuperSecret123!'),
+      emailVerifiedAt: new Date(),
     },
   });
   const membership = await prisma.staffMembership.create({

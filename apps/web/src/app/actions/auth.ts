@@ -69,17 +69,22 @@ export async function registerAction(_prev: FormState, formData: FormData): Prom
     };
   }
 
+  let link: string | null = null;
   try {
-    const res = await api<AuthResponse>('/v1/auth/register', {
-      method: 'POST',
-      body: parsed.data,
-      auth: false,
-    });
+    const res = await api<AuthResponse & { verificationLink?: string | null }>(
+      '/v1/auth/register',
+      { method: 'POST', body: parsed.data, auth: false },
+    );
     await storeTokens(res.accessToken, res.refreshToken);
+
+    // With no email provider connected the API hands the confirmation link back
+    // rather than leaving the café unable to finish. Carrying it through means
+    // signing up works on day one and stops working differently on day two.
+    if (res.verificationLink) link = res.verificationLink;
   } catch (err) {
     return fieldErrors(err);
   }
-  redirect('/dashboard?welcome=1');
+  redirect(link ? `/dashboard?welcome=1&confirm=${encodeURIComponent(link)}` : '/dashboard?welcome=1');
 }
 
 export async function acceptInviteAction(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -116,4 +121,18 @@ export async function acceptInviteAction(_prev: FormState, formData: FormData): 
 export async function logoutAction(): Promise<void> {
   await clearTokens();
   redirect('/login');
+}
+
+
+/** Asks for the confirmation email again. */
+export async function resendVerificationAction(): Promise<{ ok: boolean; link?: string | null }> {
+  try {
+    const res = await api<{ sent: boolean; verificationLink: string | null }>(
+      '/v1/auth/resend-verification',
+      { method: 'POST' },
+    );
+    return { ok: true, link: res.verificationLink };
+  } catch {
+    return { ok: false };
+  }
 }

@@ -169,16 +169,60 @@ model Suggestion {
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
-  passwordHash String
+  /// Absent for an account that only ever signs in with Google or Apple.
+  passwordHash String?
   name         String
   phone        String?
   isActive     Boolean  @default(true)
+  /// When the address was proved to belong to them. Null means it has not been.
+  emailVerifiedAt DateTime?
   lastLoginAt  DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   staffMemberships StaffMembership[]
   refreshTokens    RefreshToken[]
+  verifications    EmailVerification[]
+  identities       SocialIdentity[]
+}
+
+/// A one-time link proving someone can read the address they signed up with.
+/// Only the hash is kept, for the same reason refresh tokens are: a leaked
+/// database should not hand anyone a working link.
+model EmailVerification {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum SocialProvider {
+  GOOGLE
+  APPLE
+}
+
+/// An account at Google or Apple that may sign in as this user.
+///
+/// Matched on the provider's own subject rather than the email: people change
+/// the address on their Google account, and an email is not a stable identity.
+model SocialIdentity {
+  id        String         @id @default(cuid())
+  userId    String
+  provider  SocialProvider
+  subject   String
+  email     String?
+  createdAt DateTime       @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, subject])
+  @@index([userId])
 }
 
 model StaffMembership {

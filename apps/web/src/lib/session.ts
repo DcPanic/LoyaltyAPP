@@ -8,6 +8,7 @@ export interface Session {
     id: string;
     email: string;
     name: string;
+    emailVerified: boolean;
     businessId: string;
     role: Role;
     permissions: Permission[];

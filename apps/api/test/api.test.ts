@@ -184,6 +184,47 @@ describe('API', () => {
     expect(stamped.body.membership.stamps).toBe(1);
   });
 
+  it('makes a new café confirm its email before it can sign in again', async () => {
+    const email = `verify-${randomCode(6)}@example.com`;
+    const registered = await request(app).post('/v1/auth/register').send({
+      businessName: 'Verify Cafe',
+      ownerName: 'Owner',
+      email,
+      password: 'SuperSecret123!',
+      country: 'CY',
+      currency: 'EUR',
+      timezone: 'Asia/Nicosia',
+    });
+    expect(registered.status).toBe(201);
+    expect(registered.body.emailVerified).toBe(false);
+
+    // Nothing can be sent in a test run, so the link comes back instead — the
+    // same fallback a café without an email provider gets.
+    const link = registered.body.verificationLink as string;
+    expect(link).toContain('/verify?token=');
+    const token = new URL(link).searchParams.get('token')!;
+
+    // The address is unproved, so the password is not enough yet.
+    const tooEarly = await request(app)
+      .post('/v1/auth/login')
+      .send({ email, password: 'SuperSecret123!' });
+    expect(tooEarly.status).toBe(403);
+
+    const confirmed = await request(app).post('/v1/auth/verify-email').send({ token });
+    expect(confirmed.status).toBe(200);
+    expect(confirmed.body.verified).toBe(true);
+    expect(confirmed.body.accessToken).toBeTruthy();
+
+    const now = await request(app)
+      .post('/v1/auth/login')
+      .send({ email, password: 'SuperSecret123!' });
+    expect(now.status).toBe(200);
+
+    // One use only: a forwarded email is not a second way in.
+    const again = await request(app).post('/v1/auth/verify-email').send({ token });
+    expect(again.status).toBe(400);
+  });
+
   it('keeps a draft rota to the owner, then shares it, and can narrow it per person', async () => {
     const invite = await request(app)
       .post('/v1/staff/invite')
