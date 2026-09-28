@@ -20,6 +20,8 @@ export const NAV: NavItem[] = [
   { href: '/rewards', label: 'Rewards', icon: '🎁', permission: 'reward:manage' },
   { href: '/campaigns', label: 'Campaigns', icon: '📣', permission: 'campaign:manage' },
   { href: '/notifications', label: 'Notifications', icon: '🔔', permission: 'analytics:read' },
+  { href: '/links', label: 'Counter page', icon: '🔗', permission: 'settings:manage' },
+  { href: '/suggestions', label: 'Notes', icon: '💬', permission: 'customer:read' },
   { href: '/analytics', label: 'Analytics', icon: '📈', permission: 'analytics:read' },
   { href: '/staff', label: 'Staff', icon: '🧑‍🍳', permission: 'staff:manage', section: 'Café' },
   { href: '/schedule', label: 'Schedule', icon: '🗓', permission: 'schedule:manage' },

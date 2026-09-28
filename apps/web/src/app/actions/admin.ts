@@ -436,3 +436,97 @@ export async function setScheduleVisibilityAction(
     return toState(err);
   }
 }
+
+/* -------------------------------------------- the counter code page ---- */
+
+export async function addLinkAction(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const kind = str(form, 'kind');
+  try {
+    await api('/v1/business/links', {
+      method: 'POST',
+      body: {
+        kind,
+        label: str(form, 'label'),
+        // Wi-Fi carries a password to show; everything else carries an address.
+        url: kind === 'WIFI' ? null : (str(form, 'url') ?? null),
+        value: kind === 'WIFI' ? (str(form, 'value') ?? null) : null,
+      },
+    });
+    revalidatePath('/links');
+    return { ok: true, message: 'Added.' };
+  } catch (err) {
+    return toState(err);
+  }
+}
+
+export async function updateLinkAction(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const id = str(form, 'id');
+  if (!id) return { error: 'Missing link.' };
+  try {
+    await api(`/v1/business/links/${id}`, {
+      method: 'PATCH',
+      body: {
+        ...(form.get('isActive') === null ? {} : { isActive: form.get('isActive') === '1' }),
+        ...(form.get('sortOrder') === null ? {} : { sortOrder: num(form, 'sortOrder') }),
+        ...(form.get('label') === null ? {} : { label: str(form, 'label') }),
+      },
+    });
+    revalidatePath('/links');
+    return { ok: true, message: 'Saved.' };
+  } catch (err) {
+    return toState(err);
+  }
+}
+
+export async function deleteLinkAction(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const id = str(form, 'id');
+  if (!id) return { error: 'Missing link.' };
+  try {
+    await api(`/v1/business/links/${id}`, { method: 'DELETE' });
+    revalidatePath('/links');
+    return { ok: true, message: 'Removed.' };
+  } catch (err) {
+    return toState(err);
+  }
+}
+
+/**
+ * The two things on that page that are not links.
+ *
+ * Kept out of the general branding save: that form has no checkboxes for these,
+ * and an absent checkbox reads as false, so saving Settings would quietly turn
+ * them both off.
+ */
+export async function updateCounterPageAction(
+  _prev: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  try {
+    await api('/v1/business', {
+      method: 'PATCH',
+      body: {
+        suggestionsEnabled: bool(form, 'suggestionsEnabled'),
+        gameEnabled: bool(form, 'gameEnabled'),
+      },
+    });
+    revalidatePath('/links');
+    return { ok: true, message: 'Saved.' };
+  } catch (err) {
+    return toState(err);
+  }
+}
+
+export async function markSuggestionReadAction(
+  _prev: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const id = str(form, 'id');
+  if (!id) return { error: 'Missing note.' };
+  try {
+    await api(`/v1/business/suggestions/${id}/read`, { method: 'POST' });
+    revalidatePath('/suggestions');
+    return { ok: true, message: 'Marked as read.' };
+  } catch (err) {
+    return toState(err);
+  }
+}

@@ -54,30 +54,24 @@ export async function clearTokens(): Promise<void> {
   jar.delete(REFRESH);
 }
 
-/** Reads the session, transparently refreshing an expired access token once. */
+/**
+ * Reads the session.
+ *
+ * Renewal is not done here. A page being rendered may not set cookies, so a
+ * refresh at this point either throws or quietly drops the rotated token and
+ * signs the person out for real on the next click. `middleware.ts` does it
+ * instead, before the render, where the response is still ours to write to —
+ * so by the time this runs the access token is already fresh.
+ */
 export async function getSession(): Promise<Session | null> {
   const jar = await cookies();
-  if (!jar.get(ACCESS) && !jar.get(REFRESH)) return null;
+  if (!jar.get(ACCESS)) return null;
 
   try {
     return await api<Session>('/v1/auth/me');
   } catch (err) {
-    if (!(err instanceof ApiError) || err.status !== 401) throw err;
-  }
-
-  const refreshToken = jar.get(REFRESH)?.value;
-  if (!refreshToken) return null;
-
-  try {
-    const refreshed = await api<Session & { accessToken: string; refreshToken: string }>(
-      '/v1/auth/refresh',
-      { method: 'POST', body: { refreshToken }, auth: false },
-    );
-    await storeTokens(refreshed.accessToken, refreshed.refreshToken);
-    return { user: refreshed.user, business: refreshed.business };
-  } catch {
-    await clearTokens();
-    return null;
+    if (err instanceof ApiError && err.status === 401) return null;
+    throw err;
   }
 }
 
