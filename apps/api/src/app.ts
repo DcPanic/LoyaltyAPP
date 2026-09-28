@@ -21,6 +21,7 @@ import { auditRouter } from './routes/audit.js';
 import { notificationRouter } from './routes/notifications.js';
 import { billingRouter } from './routes/billing.js';
 import { mediaRouter } from './routes/media.js';
+import { scheduleRouter } from './routes/schedule.js';
 import { publicRouter } from './routes/public.js';
 import { walletRouter } from './routes/wallet.js';
 import { eventsRouter } from './routes/events.js';
@@ -69,6 +70,7 @@ export function createApp(): Express {
   app.use('/v1/notifications', apiLimiter, requireAuth, notificationRouter);
   app.use('/v1/billing', apiLimiter, requireAuth, billingRouter);
   app.use('/v1/media', apiLimiter, requireAuth, mediaRouter);
+  app.use('/v1/schedule', apiLimiter, requireAuth, scheduleRouter);
   app.use('/v1/events', requireAuth, eventsRouter);
 
   app.use(notFoundHandler);

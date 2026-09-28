@@ -330,3 +330,101 @@ export async function setConsentAction(_prev: ActionState, form: FormData): Prom
     return toState(err);
   }
 }
+
+/* ----------------------------------------------------------------- rota ---- */
+
+/**
+ * The form gives a date and two clock times; the API wants two instants.
+ * A shift that ends earlier in the day than it starts is an overnight one, so
+ * the end belongs to the next day rather than being an error.
+ */
+function shiftTimes(form: FormData): { startsAt: string; endsAt: string } | null {
+  const date = str(form, 'date');
+  const start = str(form, 'start');
+  const end = str(form, 'end');
+  if (!date || !start || !end) return null;
+
+  const startsAt = new Date(`${date}T${start}`);
+  const endsAt = new Date(`${date}T${end}`);
+  if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) return null;
+  if (endsAt <= startsAt) endsAt.setDate(endsAt.getDate() + 1);
+
+  return { startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString() };
+}
+
+export async function addShiftAction(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const times = shiftTimes(form);
+  if (!times) return { error: 'Give a date, a start and an end.' };
+
+  try {
+    await api('/v1/schedule', {
+      method: 'POST',
+      body: {
+        staffMembershipId: str(form, 'staffMembershipId'),
+        locationId: str(form, 'locationId') ?? null,
+        note: str(form, 'note') ?? null,
+        ...times,
+      },
+    });
+    revalidatePath('/schedule');
+    return { ok: true, message: 'Shift added.' };
+  } catch (err) {
+    return toState(err);
+  }
+}
+
+export async function deleteShiftAction(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const id = str(form, 'id');
+  if (!id) return { error: 'Missing shift.' };
+  try {
+    await api(`/v1/schedule/${id}`, { method: 'DELETE' });
+    revalidatePath('/schedule');
+    return { ok: true, message: 'Shift removed.' };
+  } catch (err) {
+    return toState(err);
+  }
+}
+
+export async function publishScheduleAction(
+  _prev: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const from = str(form, 'from');
+  const to = str(form, 'to');
+  const undo = form.get('undo') === '1';
+  if (!from || !to) return { error: 'Missing week.' };
+
+  try {
+    const result = await api<{ published?: number; unpublished?: number }>(
+      `/v1/schedule/${undo ? 'unpublish' : 'publish'}`,
+      { method: 'POST', body: { from, to } },
+    );
+    revalidatePath('/schedule');
+    return {
+      ok: true,
+      message: undo
+        ? `Taken back from the team (${result.unpublished ?? 0} shifts).`
+        : `The team can see it now (${result.published ?? 0} shifts).`,
+    };
+  } catch (err) {
+    return toState(err);
+  }
+}
+
+export async function setScheduleVisibilityAction(
+  _prev: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const id = str(form, 'id');
+  if (!id) return { error: 'Missing staff member.' };
+  try {
+    await api(`/v1/staff/${id}`, {
+      method: 'PATCH',
+      body: { seesFullSchedule: form.get('seesFullSchedule') === '1' },
+    });
+    revalidatePath('/schedule');
+    return { ok: true, message: 'Saved.' };
+  } catch (err) {
+    return toState(err);
+  }
+}

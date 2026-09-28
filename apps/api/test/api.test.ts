@@ -184,6 +184,101 @@ describe('API', () => {
     expect(stamped.body.membership.stamps).toBe(1);
   });
 
+  it('keeps a draft rota to the owner, then shares it, and can narrow it per person', async () => {
+    const invite = await request(app)
+      .post('/v1/staff/invite')
+      .set('authorization', `Bearer ${cafeA.accessToken}`)
+      .send({ name: 'Rota Barista', email: `rota-${randomCode(6)}@example.com`, role: 'STAFF' });
+    const token = (invite.body.inviteUrl as string).split('/invite/')[1]!;
+    const accepted = await request(app)
+      .post('/v1/auth/accept-invite')
+      .send({ token, name: 'Rota Barista', password: 'SuperSecret123!' });
+    const staffToken = accepted.body.accessToken as string;
+
+    const people = await request(app)
+      .get('/v1/schedule/people')
+      .set('authorization', `Bearer ${cafeA.accessToken}`);
+    expect(people.status).toBe(200);
+    const barista = (people.body.items as { id: string; name: string }[]).find(
+      (p) => p.name === 'Rota Barista',
+    )!;
+    const owner = (people.body.items as { id: string; name: string; role: string }[]).find(
+      (p) => p.role === 'OWNER',
+    )!;
+
+    // A week that starts well clear of "now", so nothing else in the suite can
+    // land inside the range being asked for.
+    const from = new Date('2031-03-03T00:00:00.000Z');
+    const to = new Date('2031-03-10T00:00:00.000Z');
+    const shift = (membershipId: string, day: number) =>
+      request(app)
+        .post('/v1/schedule')
+        .set('authorization', `Bearer ${cafeA.accessToken}`)
+        .send({
+          staffMembershipId: membershipId,
+          startsAt: new Date(`2031-03-0${day}T07:00:00.000Z`).toISOString(),
+          endsAt: new Date(`2031-03-0${day}T15:00:00.000Z`).toISOString(),
+        });
+
+    expect((await shift(barista.id, 4)).status).toBe(201);
+    expect((await shift(owner.id, 5)).status).toBe(201);
+
+    const query = `from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`;
+    const asStaff = () =>
+      request(app).get(`/v1/schedule?${query}`).set('authorization', `Bearer ${staffToken}`);
+
+    // Still a draft: the owner sees it, the team does not.
+    const ownerDraft = await request(app)
+      .get(`/v1/schedule?${query}`)
+      .set('authorization', `Bearer ${cafeA.accessToken}`);
+    expect(ownerDraft.body.items).toHaveLength(2);
+    expect((await asStaff()).body.items).toHaveLength(0);
+
+    const published = await request(app)
+      .post('/v1/schedule/publish')
+      .set('authorization', `Bearer ${cafeA.accessToken}`)
+      .send({ from: from.toISOString(), to: to.toISOString() });
+    expect(published.body.published).toBe(2);
+
+    // Published, and by default the whole team is visible to everyone.
+    const shared = await asStaff();
+    expect(shared.body.scope).toBe('everyone');
+    expect(shared.body.items).toHaveLength(2);
+
+    // Narrowed for this one person: only their own shift now.
+    await request(app)
+      .patch(`/v1/staff/${barista.id}`)
+      .set('authorization', `Bearer ${cafeA.accessToken}`)
+      .send({ seesFullSchedule: false });
+
+    const narrowed = await asStaff();
+    expect(narrowed.body.scope).toBe('mine');
+    expect(narrowed.body.items).toHaveLength(1);
+    expect(narrowed.body.items[0].staffMembershipId).toBe(barista.id);
+
+    // Staff may read a rota but never write one.
+    const attempt = await request(app)
+      .post('/v1/schedule')
+      .set('authorization', `Bearer ${staffToken}`)
+      .send({
+        staffMembershipId: barista.id,
+        startsAt: new Date('2031-03-06T07:00:00.000Z').toISOString(),
+        endsAt: new Date('2031-03-06T15:00:00.000Z').toISOString(),
+      });
+    expect(attempt.status).toBe(403);
+
+    // And one café cannot roster another café's staff.
+    const crossTenant = await request(app)
+      .post('/v1/schedule')
+      .set('authorization', `Bearer ${cafeB.accessToken}`)
+      .send({
+        staffMembershipId: barista.id,
+        startsAt: new Date('2031-03-06T07:00:00.000Z').toISOString(),
+        endsAt: new Date('2031-03-06T15:00:00.000Z').toISOString(),
+      });
+    expect(crossTenant.status).toBe(404);
+  });
+
   it('stamps through an NFC tag and rejects a disabled tag', async () => {
     const tag = await request(app)
       .post('/v1/nfc')

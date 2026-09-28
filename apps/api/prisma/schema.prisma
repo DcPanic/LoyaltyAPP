@@ -110,6 +110,7 @@ model Business {
   idempotencyKeys  IdempotencyKey[]
   links            BusinessLink[]
   suggestions      Suggestion[]
+  shifts           Shift[]
 }
 
 /// What a café offers on the page its QR code opens.
@@ -188,14 +189,44 @@ model StaffMembership {
   permissions String[] @default([])
   locationIds String[] @default([])
   isActive    Boolean  @default(true)
+  /// Whether this person sees the whole rota or only the shifts they work.
+  /// On by default, because a team that can see the week can sort a swap out
+  /// between themselves; the owner turns it off for anyone who should not.
+  seesFullSchedule Boolean @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shifts   Shift[]
 
   @@unique([businessId, userId])
   @@index([businessId])
+}
+
+/// One person, working, between two times.
+///
+/// A shift is invisible to staff until the owner publishes it, so next month's
+/// rota can be built and rearranged without anyone planning their life around
+/// a draft.
+model Shift {
+  id                String    @id @default(cuid())
+  businessId        String
+  staffMembershipId String
+  locationId        String?
+  startsAt          DateTime
+  endsAt            DateTime
+  note              String?
+  publishedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  business   Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  membership StaffMembership @relation(fields: [staffMembershipId], references: [id], onDelete: Cascade)
+  location   Location?       @relation(fields: [locationId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, startsAt])
+  @@index([staffMembershipId, startsAt])
 }
 
 model StaffInvite {
@@ -244,6 +275,7 @@ model Location {
 
   business     Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
   nfcDevices   NfcDevice[]
+  shifts       Shift[]
   transactions Transaction[]
   redemptions  RewardRedemption[]
   customers    Customer[]

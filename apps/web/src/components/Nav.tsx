@@ -22,6 +22,7 @@ export const NAV: NavItem[] = [
   { href: '/notifications', label: 'Notifications', icon: '🔔', permission: 'analytics:read' },
   { href: '/analytics', label: 'Analytics', icon: '📈', permission: 'analytics:read' },
   { href: '/staff', label: 'Staff', icon: '🧑‍🍳', permission: 'staff:manage', section: 'Café' },
+  { href: '/schedule', label: 'Schedule', icon: '🗓', permission: 'schedule:manage' },
   { href: '/locations', label: 'Locations', icon: '📍', permission: 'location:manage' },
   { href: '/nfc', label: 'NFC tags', icon: '📶', permission: 'nfc:manage' },
   { href: '/audit', label: 'Activity log', icon: '🗒', permission: 'audit:read' },

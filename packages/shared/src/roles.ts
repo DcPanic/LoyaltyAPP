@@ -23,6 +23,8 @@ export const PERMISSIONS = [
   'settings:manage',
   'billing:manage',
   'audit:read',
+  'schedule:read',
+  'schedule:manage',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
@@ -43,6 +45,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'location:manage',
     'nfc:manage',
     'audit:read',
+    'schedule:read',
+    'schedule:manage',
   ],
   // Staff serve the counter: find the customer, sign up a new one, add stamps,
   // and hand over a reward that has been earned. Signing someone up matters for
@@ -50,7 +54,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   // QR code and the barista is the only one who can start their card. They see
   // no takings, no settings and no other staff. A membership may narrow or
   // widen this per person.
-  STAFF: ['stamp:add', 'customer:read', 'customer:write', 'reward:redeem'],
+  STAFF: ['stamp:add', 'customer:read', 'customer:write', 'reward:redeem', 'schedule:read'],
 };
 
 export function permissionsForRole(role: Role): Permission[] {

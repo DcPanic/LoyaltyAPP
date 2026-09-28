@@ -27,6 +27,14 @@ export default function TabsLayout() {
         options={{ title: 'Stamp', tabBarIcon: icon('☕') }}
       />
       <Tabs.Screen
+        name="shifts"
+        options={{
+          title: 'Shifts',
+          tabBarIcon: icon('🗓'),
+          href: can('schedule:read') || can('schedule:manage') ? undefined : null,
+        }}
+      />
+      <Tabs.Screen
         name="customers"
         options={{
           title: 'Customers',

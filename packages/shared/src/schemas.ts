@@ -126,6 +126,43 @@ export const updateBusinessLinkSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
+/* --------------------------------------------------------------- rota ---- */
+
+/**
+ * One shift. Times are full instants rather than a date plus a clock time, so a
+ * shift that runs past midnight is one row and needs no special case.
+ */
+export const shiftSchema = z
+  .object({
+    staffMembershipId: cuidLike,
+    locationId: cuidLike.nullish(),
+    startsAt: z.string().datetime(),
+    endsAt: z.string().datetime(),
+    note: z.string().trim().max(200).nullish(),
+  })
+  .refine((v) => new Date(v.endsAt) > new Date(v.startsAt), {
+    message: 'A shift has to end after it starts',
+    path: ['endsAt'],
+  });
+
+export const updateShiftSchema = z
+  .object({
+    staffMembershipId: cuidLike.optional(),
+    locationId: cuidLike.nullish(),
+    startsAt: z.string().datetime().optional(),
+    endsAt: z.string().datetime().optional(),
+    note: z.string().trim().max(200).nullish(),
+  })
+  .refine((v) => !v.startsAt || !v.endsAt || new Date(v.endsAt) > new Date(v.startsAt), {
+    message: 'A shift has to end after it starts',
+    path: ['endsAt'],
+  });
+
+export const scheduleRangeSchema = z.object({
+  from: z.string().datetime(),
+  to: z.string().datetime(),
+});
+
 export const suggestionSchema = z.object({
   message: z.string().trim().min(3).max(2000),
   /** Only if they want to be answered. */
@@ -234,6 +271,7 @@ export const inviteStaffSchema = z.object({
 });
 
 export const updateStaffSchema = z.object({
+  seesFullSchedule: z.boolean().optional(),
   role: z.enum(ROLES).optional(),
   locationIds: z.array(cuidLike).max(50).optional(),
   permissions: z.array(z.string().max(40)).max(40).optional(),

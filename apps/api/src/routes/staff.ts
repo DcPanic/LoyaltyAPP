@@ -136,6 +136,7 @@ staffRouter.patch(
         permissions: input.permissions,
         locationIds: input.locationIds,
         isActive: input.isActive,
+        seesFullSchedule: input.seesFullSchedule,
       },
     });
     void recordAudit({
