@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { addDays, zonedInstant } from '@loyaltyapp/shared';
 import { api, ApiError } from '@/lib/api';
 
 export interface ActionState {
@@ -335,25 +336,32 @@ export async function setConsentAction(_prev: ActionState, form: FormData): Prom
 
 /**
  * The form gives a date and two clock times; the API wants two instants.
- * A shift that ends earlier in the day than it starts is an overnight one, so
- * the end belongs to the next day rather than being an error.
+ *
+ * The times are read in the café's timezone, not the server's. "08:00" means
+ * eight in the morning at that café, and a server running anywhere else would
+ * otherwise shift every shift by the difference. A shift that ends earlier in
+ * the day than it starts is an overnight one, so its end belongs to the next
+ * day rather than being an error.
  */
-function shiftTimes(form: FormData): { startsAt: string; endsAt: string } | null {
+function shiftTimes(form: FormData, tz: string): { startsAt: string; endsAt: string } | null {
   const date = str(form, 'date');
   const start = str(form, 'start');
   const end = str(form, 'end');
   if (!date || !start || !end) return null;
 
-  const startsAt = new Date(`${date}T${start}`);
-  const endsAt = new Date(`${date}T${end}`);
+  const startsAt = zonedInstant(date, start, tz);
+  let endsAt = zonedInstant(date, end, tz);
   if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) return null;
-  if (endsAt <= startsAt) endsAt.setDate(endsAt.getDate() + 1);
+  if (endsAt <= startsAt) endsAt = zonedInstant(addDays(date, 1), end, tz);
 
   return { startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString() };
 }
 
 export async function addShiftAction(_prev: ActionState, form: FormData): Promise<ActionState> {
-  const times = shiftTimes(form);
+  // Read from the café rather than the form: a timezone posted by a browser is
+  // something a browser could get wrong, or change.
+  const business = await api<{ timezone: string }>('/v1/business');
+  const times = shiftTimes(form, business.timezone);
   if (!times) return { error: 'Give a date, a start and an end.' };
 
   try {

@@ -1,3 +1,11 @@
+import {
+  addDays,
+  hoursBetween,
+  weekDayKeys,
+  zonedDayKey,
+  zonedStartOfDay,
+  zonedTime,
+} from '@loyaltyapp/shared';
 import { api } from '@/lib/api';
 import { requirePermission } from '@/lib/session';
 import { ActionForm } from '@/components/ActionForm';
@@ -30,22 +38,20 @@ export const metadata = { title: 'Schedule — LoyaltyApp' };
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-/** Monday of the week containing `d`, at midnight local time. */
-function weekStart(d: Date): Date {
-  const start = new Date(d);
-  start.setHours(0, 0, 0, 0);
-  start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
-  return start;
-}
+/** A day key as "3 Mar", in the café's own calendar. */
+const dayLabel = (dayKey: string) =>
+  new Date(`${dayKey}T12:00:00Z`).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  });
 
-const isoDate = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-const time = (iso: string) =>
-  new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-
-const hours = (from: string, to: string) =>
-  Math.round(((new Date(to).getTime() - new Date(from).getTime()) / 3_600_000) * 10) / 10;
+const monthLabel = (dayKey: string) =>
+  new Date(`${dayKey}T12:00:00Z`).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  });
 
 export default async function SchedulePage({
   searchParams,
@@ -55,14 +61,15 @@ export default async function SchedulePage({
   await requirePermission('schedule:manage');
   const { week } = await searchParams;
 
-  const from = weekStart(week ? new Date(week) : new Date());
-  const to = new Date(from);
-  to.setDate(to.getDate() + 7);
+  // Everything below is worked out in the café's timezone, never the reader's.
+  // A rota read from abroad, or on a phone still set to another country, has to
+  // show the same clock as the one on the wall.
+  const business = await api<{ timezone: string }>('/v1/business');
+  const tz = business.timezone;
 
-  const previous = new Date(from);
-  previous.setDate(previous.getDate() - 7);
-  const next = new Date(from);
-  next.setDate(next.getDate() + 7);
+  const days = weekDayKeys(week ?? zonedDayKey(new Date(), tz));
+  const from = zonedStartOfDay(days[0]!, tz);
+  const to = zonedStartOfDay(addDays(days[6]!, 1), tz);
 
   const [schedule, people, locations] = await Promise.all([
     api<{ items: Shift[] }>(
@@ -72,34 +79,26 @@ export default async function SchedulePage({
     api<{ items: { id: string; name: string }[] }>('/v1/business/locations'),
   ]);
 
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const day = new Date(from);
-    day.setDate(day.getDate() + i);
-    const after = new Date(day);
-    after.setDate(after.getDate() + 1);
-    return {
-      date: day,
-      name: DAY_NAMES[i]!,
-      shifts: schedule.items.filter((s) => {
-        const at = new Date(s.startsAt);
-        return at >= day && at < after;
-      }),
-    };
-  });
+  const week_ = days.map((dayKey, i) => ({
+    dayKey,
+    name: DAY_NAMES[i]!,
+    shifts: schedule.items.filter((s) => zonedDayKey(s.startsAt, tz) === dayKey),
+  }));
 
   const unpublished = schedule.items.filter((s) => !s.published).length;
   const totalHours =
-    Math.round(schedule.items.reduce((t, s) => t + hours(s.startsAt, s.endsAt), 0) * 10) / 10;
+    Math.round(schedule.items.reduce((t, s) => t + hoursBetween(s.startsAt, s.endsAt), 0) * 10) /
+    10;
 
   return (
     <>
       <div className="topbar">
         <h1>Schedule</h1>
         <div className="row">
-          <a className="btn secondary" href={`/schedule?week=${isoDate(previous)}`}>
+          <a className="btn secondary" href={`/schedule?week=${addDays(days[0]!, -7)}`}>
             ‹ Previous
           </a>
-          <a className="btn secondary" href={`/schedule?week=${isoDate(next)}`}>
+          <a className="btn secondary" href={`/schedule?week=${addDays(days[0]!, 7)}`}>
             Next ›
           </a>
         </div>
@@ -108,11 +107,7 @@ export default async function SchedulePage({
       <div className="card">
         <div className="card-header">
           <h2>
-            {from.toLocaleDateString(undefined, { day: 'numeric', month: 'long' })} —{' '}
-            {new Date(to.getTime() - 1).toLocaleDateString(undefined, {
-              day: 'numeric',
-              month: 'long',
-            })}
+{monthLabel(days[0]!)} — {monthLabel(days[6]!)}
           </h2>
           <span className="hint">
             {schedule.items.length} shifts · {totalHours} hours
@@ -161,7 +156,7 @@ export default async function SchedulePage({
             </div>
             <div className="field">
               <label htmlFor="date">Day</label>
-              <input id="date" name="date" type="date" defaultValue={isoDate(from)} required />
+              <input id="date" name="date" type="date" defaultValue={days[0]!} required />
             </div>
             <div className="field">
               <label htmlFor="locationId">Where (optional)</label>
@@ -193,12 +188,12 @@ export default async function SchedulePage({
         </ActionForm>
       </div>
 
-      {days.map((day) => (
+      {week_.map((day) => (
         <div className="card" key={day.name}>
           <div className="card-header">
             <h2>{day.name}</h2>
             <span className="hint">
-              {day.date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+              {dayLabel(day.dayKey)}
             </span>
           </div>
 
@@ -211,8 +206,8 @@ export default async function SchedulePage({
                   <div>
                     <strong>{shift.staffName}</strong>
                     <div className="hint">
-                      {time(shift.startsAt)} – {time(shift.endsAt)} ·{' '}
-                      {hours(shift.startsAt, shift.endsAt)}h
+                      {zonedTime(shift.startsAt, tz)} – {zonedTime(shift.endsAt, tz)} ·{' '}
+                      {hoursBetween(shift.startsAt, shift.endsAt)}h
                       {shift.locationName ? ` · ${shift.locationName}` : ''}
                       {shift.note ? ` · ${shift.note}` : ''}
                       {!shift.published ? ' · not published' : ''}

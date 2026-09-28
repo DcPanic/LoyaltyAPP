@@ -51,6 +51,13 @@ scheduleRouter.get(
     });
     if (!membership) throw notFound('You are not on this café');
 
+    // Sent with the rota so both apps show the café's own clock rather than the
+    // reader's. A phone still set to last week's holiday must not move a shift.
+    const business = await prisma.business.findUnique({
+      where: { id: ctx.businessId },
+      select: { timezone: true },
+    });
+
     const mine = !manages && !membership.seesFullSchedule;
 
     const shifts = await prisma.shift.findMany({
@@ -71,6 +78,7 @@ scheduleRouter.get(
       canManage: manages,
       scope: mine ? 'mine' : 'everyone',
       myMembershipId: membership.id,
+      timezone: business?.timezone ?? 'UTC',
       items: shifts.map((s) => ({
         id: s.id,
         staffMembershipId: s.staffMembershipId,

@@ -1,6 +1,14 @@
 import { useCallback, useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
+import {
+  addDays,
+  hoursBetween,
+  weekDayKeys,
+  zonedDayKey,
+  zonedStartOfDay,
+  zonedTime,
+} from '../../src/lib/time';
 import { api, ApiError } from '../../src/lib/api';
 import { Banner, Card, styles } from '../../src/components/ui';
 import { theme } from '../../src/theme';
@@ -20,25 +28,19 @@ interface Schedule {
   canManage: boolean;
   scope: 'mine' | 'everyone';
   myMembershipId: string;
+  /** The café's own timezone — never the phone's. */
+  timezone: string;
   items: Shift[];
-}
-
-/** Monday of the week containing `d`, at midnight local time. */
-function weekStart(d: Date): Date {
-  const start = new Date(d);
-  start.setHours(0, 0, 0, 0);
-  const weekday = (start.getDay() + 6) % 7;
-  start.setDate(start.getDate() - weekday);
-  return start;
 }
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-const time = (iso: string) =>
-  new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-
-const hours = (from: string, to: string) =>
-  Math.round(((new Date(to).getTime() - new Date(from).getTime()) / 3_600_000) * 10) / 10;
+const dayLabel = (dayKey: string) =>
+  new Date(`${dayKey}T12:00:00Z`).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  });
 
 /**
  * When the team works.
@@ -46,6 +48,10 @@ const hours = (from: string, to: string) =>
  * Read-only: the rota is written on the dashboard and this is where it is
  * consulted, usually standing up and in a hurry. Today is called today rather
  * than given a date, because that is the question being asked.
+ *
+ * Every time here is the café's, not the phone's. A barista whose phone came
+ * back from holiday still set to another country has to read the same eight
+ * o'clock as the one on the wall, or they turn up at the wrong hour.
  */
 export default function ShiftsScreen() {
   const [weekOffset, setWeekOffset] = useState(0);
@@ -53,14 +59,21 @@ export default function ShiftsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const from = weekStart(new Date());
-  from.setDate(from.getDate() + weekOffset * 7);
-  const to = new Date(from);
-  to.setDate(to.getDate() + 7);
+  // Until the first reply arrives we do not know the café's zone, so the phone's
+  // is used to pick a range. The range is asked for a day wide on each side and
+  // the days are cut by the café's zone once it is known, so the week shown is
+  // right either way.
+  const tz = data?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const days = weekDayKeys(addDays(zonedDayKey(new Date(), tz), weekOffset * 7));
+  const today = zonedDayKey(new Date(), tz);
 
   const load = useCallback(async () => {
     try {
       setError(null);
+      const zone = data?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const week = weekDayKeys(addDays(zonedDayKey(new Date(), zone), weekOffset * 7));
+      const from = zonedStartOfDay(addDays(week[0]!, -1), zone);
+      const to = zonedStartOfDay(addDays(week[6]!, 2), zone);
       setData(
         await api<Schedule>(
           `/v1/schedule?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`,
@@ -69,7 +82,7 @@ export default function ShiftsScreen() {
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not load the schedule');
     }
-    // The dates are derived from weekOffset, so that is the real dependency.
+    // data.timezone only ever refines the range; weekOffset is what moves it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekOffset]);
 
@@ -79,25 +92,20 @@ export default function ShiftsScreen() {
     }, [load]),
   );
 
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const day = new Date(from);
-    day.setDate(day.getDate() + i);
-    const next = new Date(day);
-    next.setDate(next.getDate() + 1);
-    return {
-      date: day,
-      name: DAY_NAMES[i]!,
-      isToday: new Date().toDateString() === day.toDateString(),
-      shifts: (data?.items ?? []).filter((s) => {
-        const at = new Date(s.startsAt);
-        return at >= day && at < next;
-      }),
-    };
-  });
+  const byDay = days.map((dayKey, i) => ({
+    dayKey,
+    name: DAY_NAMES[i]!,
+    isToday: dayKey === today,
+    shifts: (data?.items ?? []).filter((s) => zonedDayKey(s.startsAt, tz) === dayKey),
+  }));
 
-  const myHours = (data?.items ?? [])
-    .filter((s) => s.staffMembershipId === data?.myMembershipId)
-    .reduce((total, s) => total + hours(s.startsAt, s.endsAt), 0);
+  const myHours =
+    Math.round(
+      byDay
+        .flatMap((d) => d.shifts)
+        .filter((s) => s.staffMembershipId === data?.myMembershipId)
+        .reduce((total, s) => total + hoursBetween(s.startsAt, s.endsAt), 0) * 10,
+    ) / 10;
 
   const label =
     weekOffset === 0
@@ -106,7 +114,7 @@ export default function ShiftsScreen() {
         ? 'Next week'
         : weekOffset === -1
           ? 'Last week'
-          : `${from.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} — ${new Date(to.getTime() - 1).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`;
+          : `${dayLabel(days[0]!)} — ${dayLabel(days[6]!)}`;
 
   return (
     <ScrollView
@@ -148,13 +156,14 @@ export default function ShiftsScreen() {
         </Text>
       </Card>
 
-      {days.map((day) => (
-        <Card key={day.name} style={day.isToday ? { borderColor: theme.colors.joyMango } : undefined}>
+      {byDay.map((day) => (
+        <Card
+          key={day.dayKey}
+          style={day.isToday ? { borderColor: theme.colors.joyMango } : undefined}
+        >
           <View style={styles.spread}>
             <Text style={styles.h2}>{day.isToday ? 'Today' : day.name}</Text>
-            <Text style={styles.muted}>
-              {day.date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
-            </Text>
+            <Text style={styles.muted}>{dayLabel(day.dayKey)}</Text>
           </View>
 
           {day.shifts.length === 0 ? (
@@ -189,7 +198,7 @@ export default function ShiftsScreen() {
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
                     <Text style={{ fontWeight: '700', color: theme.colors.ink }}>
-                      {time(shift.startsAt)} – {time(shift.endsAt)}
+                      {zonedTime(shift.startsAt, tz)} – {zonedTime(shift.endsAt, tz)}
                     </Text>
                     {/* Only a manager ever sees an unpublished shift, and they
                         should know the team cannot see it yet. */}
