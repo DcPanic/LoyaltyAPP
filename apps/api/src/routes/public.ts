@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import QRCode from 'qrcode';
 import { joinSchema, suggestionSchema } from '@loyaltyapp/shared';
 import { env } from '../config/env.js';
 import { prisma } from '../lib/prisma.js';
@@ -116,6 +117,39 @@ publicRouter.post(
       },
     });
     res.status(201).json({ ok: true });
+  }),
+);
+
+/**
+ * The café's own QR code, as an image.
+ *
+ * Public, because what it encodes is the public join page: a picture of a
+ * public address is not a secret, and keeping it behind a login would mean the
+ * owner could not simply send it to a printer.
+ *
+ * Generated rather than stored. It never changes for a café, so there is
+ * nothing to keep in sync, and a café that renames itself still gets a code
+ * that works.
+ */
+publicRouter.get(
+  '/qr/:slug',
+  asyncHandler(async (req, res) => {
+    const slug = String(req.params.slug ?? '').replace(/\.png$/i, '');
+    const business = await prisma.business.findUnique({ where: { slug }, select: { id: true } });
+    if (!business) throw notFound('Café not found');
+
+    const size = Math.min(2000, Math.max(200, Number(req.query.size ?? 900)));
+    const png = await QRCode.toBuffer(`${env.APP_URL}/j/${slug}`, {
+      type: 'png',
+      width: size,
+      margin: 2,
+      errorCorrectionLevel: 'M',
+    });
+
+    res.setHeader('content-type', 'image/png');
+    res.setHeader('cache-control', 'public, max-age=86400');
+    res.setHeader('content-disposition', `inline; filename="${slug}-loyalty-qr.png"`);
+    res.send(png);
   }),
 );
 

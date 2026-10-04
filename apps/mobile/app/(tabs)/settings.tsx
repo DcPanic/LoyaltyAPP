@@ -34,6 +34,17 @@ export default function SettingsScreen() {
         </View>
       </Card>
 
+      {/* The first thing a new café needs is something to put on the counter,
+          so it sits above everything else here rather than in a web dashboard
+          they may not have opened yet. */}
+      <Card>
+        <Text style={styles.h2}>Your counter code</Text>
+        <Text style={styles.muted}>
+          The QR customers scan to get their loyalty card. Print it for the counter.
+        </Text>
+        <Button label="Open it" onPress={() => router.push('/counter-qr')} />
+      </Card>
+
       <Card>
         <Text style={styles.h2}>What you can do</Text>
         {(user?.permissions ?? []).map((permission) => (

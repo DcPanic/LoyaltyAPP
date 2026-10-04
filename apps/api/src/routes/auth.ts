@@ -84,6 +84,11 @@ async function sessionPayload(userId: string, businessId: string) {
       currency: membership.business.currency,
       timezone: membership.business.timezone,
       country: membership.business.country,
+      // Where customers join, and the printable sheet for the counter. Sent
+      // from here because only the API knows the web app's address.
+      joinUrl: `${env.APP_URL}/j/${membership.business.slug}`,
+      posterUrl: `${env.APP_URL}/p/${membership.business.slug}`,
+      qrImageUrl: `${env.API_URL}/v1/public/qr/${membership.business.slug}`,
     },
     membershipId: membership.id,
   };

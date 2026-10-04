@@ -15,6 +15,9 @@ export interface SessionBusiness {
   id: string;
   name: string;
   slug: string;
+  joinUrl: string;
+  posterUrl: string;
+  qrImageUrl: string;
   primaryColor: string;
   logoUrl: string | null;
   currency: string;

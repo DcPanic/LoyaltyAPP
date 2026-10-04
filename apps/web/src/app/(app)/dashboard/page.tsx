@@ -131,6 +131,9 @@ export default async function DashboardPage({
             <Link className="btn" href="/nfc">
               Set up NFC stamps
             </Link>
+            <Link className="btn" href={`/p/${business.slug}`} target="_blank">
+              Counter poster
+            </Link>
             <Link className="btn secondary" href={business.joinUrl} target="_blank">
               Preview join page
             </Link>

@@ -857,3 +857,99 @@ tr:last-child td { border-bottom: none; }
   }
   .public .progress > span { transition: none; }
 }
+
+/* ===========================================================================
+   The sheet a café prints for its counter
+   ===========================================================================
+   Sized in millimetres rather than pixels: this is the one page in the product
+   whose job is to come out of a printer at a known size, and a QR code that
+   shrinks with the browser window is a QR code nobody can scan from across a
+   counter. The note at the bottom never prints.
+   -------------------------------------------------------------------------- */
+
+.poster {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem 1rem 3rem;
+  background: var(--bg);
+}
+
+.poster-sheet {
+  width: 100%;
+  max-width: 190mm;
+  background: #fff;
+  color: #171717;
+  border-radius: 18px;
+  padding: 18mm 14mm;
+  text-align: center;
+  box-shadow: 0 24px 50px -26px rgba(24, 14, 8, 0.5);
+}
+
+.poster-logo {
+  width: 26mm;
+  height: 26mm;
+  border-radius: 8mm;
+  object-fit: cover;
+  margin: 0 auto 6mm;
+  display: block;
+}
+.poster-logo-letter {
+  background: var(--brand, #6f4e37);
+  color: #fff;
+  font-size: 13mm;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+}
+
+.poster-sheet h1 {
+  font-size: 11mm;
+  line-height: 1.1;
+  margin: 0 0 3mm;
+  letter-spacing: -0.02em;
+}
+
+.poster-offer {
+  font-size: 6mm;
+  line-height: 1.3;
+  margin: 0 0 8mm;
+  color: #3f3f3f;
+}
+.poster-offer strong { color: var(--brand, #6f4e37); }
+
+.poster-qr {
+  width: 85mm;
+  height: 85mm;
+  display: block;
+  margin: 0 auto 6mm;
+}
+
+.poster-how {
+  font-size: 7mm;
+  font-weight: 800;
+  margin: 0 0 2mm;
+  color: var(--brand, #6f4e37);
+}
+
+.poster-sub {
+  font-size: 4.2mm;
+  line-height: 1.5;
+  color: #5c5c5c;
+  margin: 0;
+}
+
+.poster-note {
+  max-width: 190mm;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+@media print {
+  .poster { background: #fff; padding: 0; display: block; }
+  .poster-sheet { box-shadow: none; border-radius: 0; max-width: none; margin: 0 auto; }
+  .poster-note { display: none; }
+}

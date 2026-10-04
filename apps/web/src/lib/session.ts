@@ -24,6 +24,9 @@ export interface Session {
     currency: string;
     timezone: string;
     country: string;
+    joinUrl: string;
+    posterUrl: string;
+    qrImageUrl: string;
   };
 }
 
